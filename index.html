@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>월-E: 지구 귀환 방탈출</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+KR:wght@300;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0a0a1a;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+
+        .orbitron { font-family: 'Orbitron', sans-serif; }
+
+        .space-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
+            z-index: -1;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: twinkle var(--duration) infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .option-btn {
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .option-btn:hover {
+            background: rgba(59, 130, 246, 0.5);
+            transform: translateX(10px);
+        }
+
+        .progress-bar {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="space-bg" id="space-bg"></div>
+
+    <div id="game-container" class="max-w-2xl w-full">
+        <!-- Start Screen -->
+        <div id="start-screen" class="text-center space-y-8 py-12">
+            <h1 class="text-6xl font-bold orbitron text-blue-400 tracking-widest mb-4">WALL·E</h1>
+            <div id="intro-text" class="space-y-4">
+                <p class="text-xl text-gray-300">지구의 마지막 식물을 찾았습니다!<br>자동항법 장치 '오토'를 뚫고 20개의 보안 코드를 입력하세요.</p>
+                <p class="text-sm text-blue-300 orbitron">SELECT YOUR LANGUAGE / 언어를 선택하세요</p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
+                <button onclick="startGame('ko')" class="w-48 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full transition-transform transform hover:scale-105 orbitron tracking-wider">
+                    한국어 (KOREAN)
+                </button>
+                <button onclick="startGame('en')" class="w-48 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-full transition-transform transform hover:scale-105 orbitron tracking-wider">
+                    ENGLISH
+                </button>
+            </div>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="quiz-screen" class="hidden">
+            <div class="mb-6 flex justify-between items-center orbitron text-sm">
+                <span id="level-indicator" class="text-blue-400">LEVEL: 01/20</span>
+                <span id="score-indicator" class="text-green-400">STATUS: STABLE</span>
+            </div>
+            
+            <div class="w-full bg-gray-800 h-2 rounded-full mb-8 overflow-hidden">
+                <div id="progress" class="progress-bar bg-blue-500 h-full w-0"></div>
+            </div>
+
+            <div class="card p-8 rounded-2xl">
+                <p id="question-text" class="text-2xl font-medium mb-8 leading-relaxed"></p>
+                <div id="options-container" class="space-y-4">
+                    <!-- Options injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden text-center space-y-8 py-12">
+            <h2 id="result-title" class="text-5xl font-bold orbitron mb-4">MISSION ACCOMPLISHED</h2>
+            <p id="result-text" class="text-xl text-gray-300"></p>
+            <button onclick="location.reload()" id="reboot-btn" class="px-10 py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full transition-transform transform hover:scale-110 orbitron">
+                REBOOT SYSTEM
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const translations = {
+            ko: {
+                status: "상태: 정상",
+                error: "상태: 심각한 오류",
+                reboot: "시스템 재부팅",
+                finishTitle: "미션 완료",
+                finishText: "축하합니다! 20개의 보안 코드를 모두 해독하여 액시엄 호를 무사히 지구에 착륙시켰습니다. 인류의 새로운 시작이 당신에게 달려있습니다!",
+                questions: [
+                    { q: "월-E는 어디서 일하고 있었나요?", a: ["화성", "달", "지구", "액시엄 호"], c: 2 },
+                    { q: "월-E에게는 유일한 친구가 있었습니다. 어떤 생물이었나요?", a: ["강아지", "바퀴벌레", "쥐", "고양이"], c: 1 },
+                    { q: "초반에 모든 상점, 은행, 철도, 우주 여행사를 소유한 거대 기업의 이름은 무엇인가요?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni Consumer Products"], c: 0 },
+                    { q: "일과를 마친 월-E는 집으로 돌아와 저녁에 무엇을 하며 즐거워하나요?", a: ["오래된 TV 뉴스를 본다", "비디오 게임을 한다", "뮤지컬 '헬로 돌리'를 본다", "잠을 잔다"], c: 2 },
+                    { q: "이브를 데려가기 위해 로켓이 도착했을 때, 월-E는 사다리에 매달려 우주로 나갑니다. 로켓이 뚫고 지나간 층은 무엇으로 가득했나요?", a: ["구름", "인공위성 쓰레기", "소행성", "얼음"], c: 1 },
+                    { q: "영화에서 'BnL'은 무엇의 약자인가요?", a: ["Better n Larger", "Build n Live", "Buy n Large", "Beyond n Limits"], c: 2 },
+                    { q: "월-E가 낡은 냉장고 문을 열었을 때 그 안에서 무엇을 발견했나요?", a: ["작은 식물", "이브의 부품", "황금 동전", "다이아몬드 반지"], c: 0 },
+                    { q: "이브가 처음 도착해 여러 언어로 말을 걸 때, 월-E가 반응한 영어 단어는 무엇인가요?", a: ["Hello", "Directive", "Robot", "Name"], c: 1 },
+                    { q: "액시엄 호의 사람들은 서로 어떻게 대화하나요?", a: ["직접 만나서", "홀로그램 화면을 통해", "텔레파시로", "편지를 써서"], c: 1 },
+                    { q: "월-E가 이브에게 식물을 선물하자 이브는 어떻게 행동했나요?", a: ["식물을 먹어버렸다", "식물을 스캔하고 몸 안에 보관한 뒤 정지했다", "식물을 버렸다", "기뻐서 춤을 췄다"], c: 1 },
+                    { q: "자동항법 장치(오토)는 왜 식물을 파괴하려 했나요?", a: ["식물이 독성이 있어서", "지구로 돌아가지 말라는 비밀 명령(A113) 때문에", "식물을 싫어해서", "에너지를 너무 많이 소비해서"], c: 1 },
+                    { q: "액시엄 호의 역대 선장들 사진 배경에서 공통적으로 발견되는 것은 무엇인가요?", a: ["지구의 모습", "자동항법 장치 '오토'", "이브 모델 로봇", "BnL 로고"], c: 1 },
+                    { q: "이브가 발견한 식물은 '광합성의 증거'입니다. 매뉴얼에 따르면 이것이 의미하는 바는 무엇인가요?", a: ["지구에 산소가 없다", "인류가 멸망했다", "지구로 돌아갈 수 있는 상태가 되었다", "로봇의 시대가 왔다"], c: 2 },
+                    { q: "월-E에서 액시엄 호는 최종적으로 어떻게 지구에 도착했나요?", a: ["연료가 떨어져 추락했다", "하이퍼점프 장치를 사용했다", "다른 우주선이 끌어주었다", "천천히 수동으로 운전했다"], c: 1 },
+                    { q: "결벽증이 있는 청소 로봇의 이름은 무엇인가요?", a: ["M-O (엠오)", "B-L (비엘)", "V-A (브이에이)", "C-P (씨피)"], c: 0 },
+                    { q: "월-E 덕분에 서로 손을 잡으며 사랑에 빠지게 된 커플의 이름은?", a: ["존과 메리", "잭과 로즈", "톰과 제리", "아담과 이브"], c: 0 },
+                    { q: "월-E는 우주 공간에서 이동하기 위해 무엇을 추진체로 사용했나요?", a: ["로켓 엔진", "소화기", "선풍기", "압축 공기 캔"], c: 1 },
+                    { q: "월-E는 에너지를 어디서 얻나요?", a: ["가솔린", "배터리 교체", "태양광 패널", "원자력"], c: 2 },
+                    { q: "맥크레이 선장은 지구로 돌아가면 아이들에게 무엇을 잘하게 될 거라고 말했나요?", a: ["달리기", "농사(Farming)", "수영", "노래"], c: 1 },
+                    { q: "영화의 마지막 장면에서 선장은 무엇을 하고 있나요?", a: ["잠을 자고 있다", "사람들에게 농사 짓는 법을 가르친다", "다시 우주로 떠난다", "월-E를 수리한다"], c: 1 }
+                ]
+            },
+            en: {
+                status: "STATUS: STABLE",
+                error: "STATUS: CRITICAL ERROR",
+                reboot: "REBOOT SYSTEM",
+                finishTitle: "MISSION ACCOMPLISHED",
+                finishText: "Congratulations! You decoded all 20 security codes and safely landed the Axiom on Earth. The future of humanity is now in your hands!",
+                questions: [
+                    { q: "Where did WALL-E work?", a: ["Mars", "The Moon", "Earth", "The Axiom"], c: 2 },
+                    { q: "WALL-E had a friend. What kind of creature was it?", a: ["Dog", "Cockroach", "Mouse", "Cat"], c: 1 },
+                    { q: "Which company owned all enterprises at the beginning, including shops, banks, and space travel?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni Consumer Products"], c: 0 },
+                    { q: "How does WALL-E amuse himself in the evening at home?", a: ["Watching news", "Playing video games", "Watching 'Hello, Dolly!'", "Sleeping"], c: 2 },
+                    { q: "What did the rocket have to crash through when it took EVE and WALL-E away?", a: ["Clouds", "Satellite junk", "Asteroids", "Ice"], c: 1 },
+                    { q: "In the movie, what does 'BnL' stand for?", a: ["Better n Larger", "Build n Live", "Buy n Large", "Beyond n Limits"], c: 2 },
+                    { q: "What does he find when he pries the door off an old refrigerator?", a: ["A small plant", "EVE's parts", "Gold coins", "Diamond ring"], c: 0 },
+                    { q: "What English word does WALL-E respond to when EVE tries different languages?", a: ["Hello", "Directive", "Robot", "Name"], c: 1 },
+                    { q: "How did people speak to each other on the Axiom?", a: ["In person", "Via hologram screens", "Telepathy", "Writing letters"], c: 1 },
+                    { q: "What does EVE do when WALL-E offers her the plant?", a: ["Eats it", "Scans it and shuts down", "Throws it away", "Dances"], c: 1 },
+                    { q: "Why did the autopilot try to destroy the plant?", a: ["It was toxic", "Secret Directive A113", "It hated plants", "Energy consumption"], c: 1 },
+                    { q: "What is seen in the background of the Axiom captains' pictures?", a: ["Earth", "Auto (Autopilot)", "EVE models", "BnL logo"], c: 1 },
+                    { q: "According to the manual, what does a plant specimen mean?", a: ["No oxygen on Earth", "Extinction", "Safe to return to Earth", "Robot era"], c: 2 },
+                    { q: "How did the Axiom get back to Earth?", a: ["Crashed", "Hyperjump", "Towed by another ship", "Manual flying"], c: 1 },
+                    { q: "What is the name of the cleaning robot?", a: ["M-O", "B-L", "V-A", "C-P"], c: 0 },
+                    { q: "What is the name of the couple who meet thanks to WALL-E?", a: ["John and Mary", "Jack and Rose", "Tom and Jerry", "Adam and Eve"], c: 0 },
+                    { q: "How does he propel himself in space?", a: ["Rocket engine", "Fire extinguisher", "Fan", "Compressed air"], c: 1 },
+                    { q: "Where did WALL-E get his energy from?", a: ["Gasoline", "Battery replacement", "Solar panels", "Nuclear"], c: 2 },
+                    { q: "What does Captain McCrae tell the children they will be great at on Earth?", a: ["Running", "Farming", "Swimming", "Singing"], c: 1 },
+                    { q: "What is the Captain doing at the end of the movie?", a: ["Sleeping", "Teaching people to farm", "Leaving for space", "Repairing WALL-E"], c: 1 }
+                ]
+            }
+        };
+
+        let currentStage = 0;
+        let selectedLang = 'ko';
+        
+        function createStars() {
+            const bg = document.getElementById('space-bg');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                const size = Math.random() * 3 + 'px';
+                star.style.width = size;
+                star.style.height = size;
+                star.style.top = Math.random() * 100 + '%';
+                star.style.left = Math.random() * 100 + '%';
+                star.style.setProperty('--duration', (Math.random() * 3 + 1) + 's');
+                bg.appendChild(star);
+            }
+        }
+
+        function startGame(lang) {
+            selectedLang = lang;
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            document.getElementById('score-indicator').innerText = translations[lang].status;
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const langData = translations[selectedLang];
+            const q = langData.questions[currentStage];
+            
+            document.getElementById('level-indicator').innerText = `LEVEL: ${String(currentStage + 1).padStart(2, '0')}/20`;
+            document.getElementById('progress').style.width = `${((currentStage) / 20) * 100}%`;
+            document.getElementById('question-text').innerText = q.q;
+            
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            
+            q.a.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn w-full text-left p-4 rounded-xl bg-white/5 hover:bg-blue-600/30 transition-all';
+                btn.innerHTML = `<span class="orbitron mr-4 text-blue-400">0${index + 1}</span> ${option}`;
+                btn.onclick = () => checkAnswer(index);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(index) {
+            const langData = translations[selectedLang];
+            if (index === langData.questions[currentStage].c) {
+                currentStage++;
+                if (currentStage < langData.questions.length) {
+                    showQuestion();
+                } else {
+                    finishGame();
+                }
+            } else {
+                const card = document.querySelector('.card');
+                card.classList.add('animate-bounce');
+                const indicator = document.getElementById('score-indicator');
+                indicator.innerText = langData.error;
+                indicator.classList.replace('text-green-400', 'text-red-500');
+                
+                setTimeout(() => {
+                    card.classList.remove('animate-bounce');
+                    indicator.innerText = langData.status;
+                    indicator.classList.replace('text-red-500', 'text-green-400');
+                }, 500);
+            }
+        }
+
+        function finishGame() {
+            const langData = translations[selectedLang];
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('result-title').innerText = langData.finishTitle;
+            document.getElementById('result-text').innerText = langData.finishText;
+            document.getElementById('reboot-btn').innerText = langData.reboot;
+        }
+
+        window.onload = createStars;
+    </script>
+</body>
+</html>
