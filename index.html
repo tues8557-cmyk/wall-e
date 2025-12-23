@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>월-E: 지구 귀환 방탈출</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+KR:wght@300;500;700&display=swap');
         
@@ -49,132 +52,229 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        .option-btn:hover {
+        .option-btn:not(:disabled):hover {
             background: rgba(59, 130, 246, 0.5);
             transform: translateX(10px);
         }
 
+        .option-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
         .progress-bar {
             transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .penalty-overlay {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(220, 38, 38, 0.2);
+            z-index: 10;
+            justify-content: center;
+            align-items: center;
+            border-radius: 1rem;
         }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
     <div class="space-bg" id="space-bg"></div>
 
+    <!-- Header Stats -->
+    <div id="game-header" class="fixed top-0 left-0 w-full p-4 flex justify-between items-center orbitron text-sm hidden z-50 bg-black/50 backdrop-blur-md">
+        <div class="flex gap-6">
+            <span class="text-blue-400">USER: <span id="display-nickname" class="text-white">---</span></span>
+            <span class="text-yellow-400">TIME: <span id="display-timer" class="text-white">00:00</span></span>
+        </div>
+        <div class="flex gap-6">
+            <span id="level-indicator" class="text-blue-400">LEVEL: 01/20</span>
+            <span id="score-indicator" class="text-green-400">STATUS: STABLE</span>
+        </div>
+    </div>
+
     <div id="game-container" class="max-w-2xl w-full">
         <!-- Start Screen -->
         <div id="start-screen" class="text-center space-y-8 py-12">
             <h1 class="text-6xl font-bold orbitron text-blue-400 tracking-widest mb-4">WALL·E</h1>
-            <div id="intro-text" class="space-y-4">
-                <p class="text-xl text-gray-300">지구의 마지막 식물을 찾았습니다!<br>자동항법 장치 '오토'를 뚫고 20개의 보안 코드를 입력하세요.</p>
-                <p class="text-sm text-blue-300 orbitron">SELECT YOUR LANGUAGE / 언어를 선택하세요</p>
+            
+            <div class="max-w-xs mx-auto space-y-4">
+                <input type="text" id="nickname-input" placeholder="Enter Nickname / 별칭 입력" class="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-center outline-none focus:border-blue-500 transition-all">
+                <p class="text-xs text-blue-300 orbitron">SELECT YOUR LANGUAGE / 언어를 선택하세요</p>
             </div>
             
-            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mt-8">
-                <button onclick="startGame('ko')" class="w-48 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full transition-transform transform hover:scale-105 orbitron tracking-wider">
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <button onclick="checkNickname('ko')" class="w-48 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full transition-transform transform hover:scale-105 orbitron tracking-wider">
                     한국어 (KOREAN)
                 </button>
-                <button onclick="startGame('en')" class="w-48 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-full transition-transform transform hover:scale-105 orbitron tracking-wider">
+                <button onclick="checkNickname('en')" class="w-48 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-full transition-transform transform hover:scale-105 orbitron tracking-wider">
                     ENGLISH
+                </button>
+            </div>
+
+            <!-- Leaderboard Icons (Language Specific) -->
+            <div class="flex justify-center gap-8 mt-8">
+                <button onclick="openLeaderboard('ko')" class="flex flex-col items-center group">
+                    <div class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 group-hover:scale-110 transition-transform"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                    </div>
+                    <span class="text-[10px] mt-2 orbitron text-blue-400">KR RANK</span>
+                </button>
+                <button onclick="openLeaderboard('en')" class="flex flex-col items-center group">
+                    <div class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400 group-hover:scale-110 transition-transform"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                    </div>
+                    <span class="text-[10px] mt-2 orbitron text-indigo-400">EN RANK</span>
                 </button>
             </div>
         </div>
 
         <!-- Question Screen -->
-        <div id="quiz-screen" class="hidden">
-            <div class="mb-6 flex justify-between items-center orbitron text-sm">
-                <span id="level-indicator" class="text-blue-400">LEVEL: 01/20</span>
-                <span id="score-indicator" class="text-green-400">STATUS: STABLE</span>
-            </div>
-            
+        <div id="quiz-screen" class="hidden relative">
             <div class="w-full bg-gray-800 h-2 rounded-full mb-8 overflow-hidden">
                 <div id="progress" class="progress-bar bg-blue-500 h-full w-0"></div>
             </div>
 
-            <div class="card p-8 rounded-2xl">
-                <p id="question-text" class="text-2xl font-medium mb-8 leading-relaxed"></p>
-                <div id="options-container" class="space-y-4">
-                    <!-- Options injected here -->
+            <div class="card p-8 rounded-2xl relative">
+                <!-- Penalty Timer Overlay -->
+                <div id="penalty-timer" class="penalty-overlay flex-col">
+                    <span class="text-4xl font-bold orbitron text-white mb-2" id="penalty-countdown">15</span>
+                    <span class="text-sm orbitron tracking-widest" id="lockdown-text">SYSTEM LOCKDOWN</span>
                 </div>
+
+                <p id="question-text" class="text-2xl font-medium mb-8 leading-relaxed"></p>
+                <div id="options-container" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- Leaderboard Modal -->
+        <div id="leaderboard-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div class="card max-w-lg w-full p-8 rounded-2xl max-h-[80vh] flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold orbitron text-yellow-400"><span id="rank-lang-label"></span> TOP 30</h2>
+                    <button onclick="closeLeaderboard()" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+                </div>
+                <div class="overflow-y-auto pr-2 space-y-2" id="rank-list">
+                    <!-- Rank items -->
+                </div>
+                <button onclick="closeLeaderboard()" class="mt-6 py-3 w-full border border-white/20 rounded-xl hover:bg-white/5 orbitron">CLOSE</button>
             </div>
         </div>
 
         <!-- Result Screen -->
         <div id="result-screen" class="hidden text-center space-y-8 py-12">
             <h2 id="result-title" class="text-5xl font-bold orbitron mb-4">MISSION ACCOMPLISHED</h2>
+            <div class="card p-6 rounded-xl inline-block mb-4">
+                <p class="orbitron text-gray-400 text-sm">FINAL CLEAR TIME</p>
+                <p id="final-time" class="text-3xl font-bold text-yellow-400">00:00</p>
+            </div>
             <p id="result-text" class="text-xl text-gray-300"></p>
-            <button onclick="location.reload()" id="reboot-btn" class="px-10 py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full transition-transform transform hover:scale-110 orbitron">
+            
+            <div id="final-rank-view" class="max-w-md mx-auto mt-8">
+                <h3 class="orbitron text-blue-400 mb-4" id="hall-label">HALL OF FAME</h3>
+                <div id="final-rank-list" class="space-y-2 text-left bg-black/30 p-4 rounded-xl"></div>
+            </div>
+
+            <button onclick="location.reload()" id="reboot-btn" class="mt-8 px-10 py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full transition-transform transform hover:scale-110 orbitron">
                 REBOOT SYSTEM
             </button>
         </div>
     </div>
 
     <script>
+        // Firebase Configuration
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(app);
+        const auth = firebase.auth(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'walle-escape-001';
+
         const translations = {
             ko: {
                 status: "상태: 정상",
-                error: "상태: 심각한 오류",
+                error: "상태: 시스템 고정 (15초)",
+                lockdown: "시스템 폐쇄",
                 reboot: "시스템 재부팅",
                 finishTitle: "미션 완료",
-                finishText: "축하합니다! 20개의 보안 코드를 모두 해독하여 액시엄 호를 무사히 지구에 착륙시켰습니다. 인류의 새로운 시작이 당신에게 달려있습니다!",
+                finishText: "축하합니다! 액시엄 호를 무사히 지구에 착륙시켰습니다. 인류의 미래가 당신의 손에 있습니다!",
+                hallLabel: "한국어 명예의 전당",
+                rankLabel: "한국어",
                 questions: [
                     { q: "월-E는 어디서 일하고 있었나요?", a: ["화성", "달", "지구", "액시엄 호"], c: 2 },
                     { q: "월-E에게는 유일한 친구가 있었습니다. 어떤 생물이었나요?", a: ["강아지", "바퀴벌레", "쥐", "고양이"], c: 1 },
-                    { q: "초반에 모든 상점, 은행, 철도, 우주 여행사를 소유한 거대 기업의 이름은 무엇인가요?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni Consumer Products"], c: 0 },
-                    { q: "일과를 마친 월-E는 집으로 돌아와 저녁에 무엇을 하며 즐거워하나요?", a: ["오래된 TV 뉴스를 본다", "비디오 게임을 한다", "뮤지컬 '헬로 돌리'를 본다", "잠을 잔다"], c: 2 },
-                    { q: "이브를 데려가기 위해 로켓이 도착했을 때, 월-E는 사다리에 매달려 우주로 나갑니다. 로켓이 뚫고 지나간 층은 무엇으로 가득했나요?", a: ["구름", "인공위성 쓰레기", "소행성", "얼음"], c: 1 },
-                    { q: "영화에서 'BnL'은 무엇의 약자인가요?", a: ["Better n Larger", "Build n Live", "Buy n Large", "Beyond n Limits"], c: 2 },
-                    { q: "월-E가 낡은 냉장고 문을 열었을 때 그 안에서 무엇을 발견했나요?", a: ["작은 식물", "이브의 부품", "황금 동전", "다이아몬드 반지"], c: 0 },
-                    { q: "이브가 처음 도착해 여러 언어로 말을 걸 때, 월-E가 반응한 영어 단어는 무엇인가요?", a: ["Hello", "Directive", "Robot", "Name"], c: 1 },
-                    { q: "액시엄 호의 사람들은 서로 어떻게 대화하나요?", a: ["직접 만나서", "홀로그램 화면을 통해", "텔레파시로", "편지를 써서"], c: 1 },
-                    { q: "월-E가 이브에게 식물을 선물하자 이브는 어떻게 행동했나요?", a: ["식물을 먹어버렸다", "식물을 스캔하고 몸 안에 보관한 뒤 정지했다", "식물을 버렸다", "기뻐서 춤을 췄다"], c: 1 },
-                    { q: "자동항법 장치(오토)는 왜 식물을 파괴하려 했나요?", a: ["식물이 독성이 있어서", "지구로 돌아가지 말라는 비밀 명령(A113) 때문에", "식물을 싫어해서", "에너지를 너무 많이 소비해서"], c: 1 },
-                    { q: "액시엄 호의 역대 선장들 사진 배경에서 공통적으로 발견되는 것은 무엇인가요?", a: ["지구의 모습", "자동항법 장치 '오토'", "이브 모델 로봇", "BnL 로고"], c: 1 },
-                    { q: "이브가 발견한 식물은 '광합성의 증거'입니다. 매뉴얼에 따르면 이것이 의미하는 바는 무엇인가요?", a: ["지구에 산소가 없다", "인류가 멸망했다", "지구로 돌아갈 수 있는 상태가 되었다", "로봇의 시대가 왔다"], c: 2 },
-                    { q: "월-E에서 액시엄 호는 최종적으로 어떻게 지구에 도착했나요?", a: ["연료가 떨어져 추락했다", "하이퍼점프 장치를 사용했다", "다른 우주선이 끌어주었다", "천천히 수동으로 운전했다"], c: 1 },
-                    { q: "결벽증이 있는 청소 로봇의 이름은 무엇인가요?", a: ["M-O (엠오)", "B-L (비엘)", "V-A (브이에이)", "C-P (씨피)"], c: 0 },
-                    { q: "월-E 덕분에 서로 손을 잡으며 사랑에 빠지게 된 커플의 이름은?", a: ["존과 메리", "잭과 로즈", "톰과 제리", "아담과 이브"], c: 0 },
-                    { q: "월-E는 우주 공간에서 이동하기 위해 무엇을 추진체로 사용했나요?", a: ["로켓 엔진", "소화기", "선풍기", "압축 공기 캔"], c: 1 },
-                    { q: "월-E는 에너지를 어디서 얻나요?", a: ["가솔린", "배터리 교체", "태양광 패널", "원자력"], c: 2 },
-                    { q: "맥크레이 선장은 지구로 돌아가면 아이들에게 무엇을 잘하게 될 거라고 말했나요?", a: ["달리기", "농사(Farming)", "수영", "노래"], c: 1 },
-                    { q: "영화의 마지막 장면에서 선장은 무엇을 하고 있나요?", a: ["잠을 자고 있다", "사람들에게 농사 짓는 법을 가르친다", "다시 우주로 떠난다", "월-E를 수리한다"], c: 1 }
+                    { q: "상점, 은행, 철도를 소유한 거대 기업의 이름은?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni"], c: 0 },
+                    { q: "월-E가 저녁에 집에서 즐겨 보는 뮤지컬 영화는?", a: ["사운드 오브 뮤직", "라라랜드", "헬로 돌리", "맘마미아"], c: 2 },
+                    { q: "이브를 태운 로켓이 지구를 떠날 때 뚫고 지나간 것은?", a: ["구름", "인공위성 쓰레기", "소행성", "태양풍"], c: 1 },
+                    { q: "영화에서 'BnL'은 무엇의 약자인가요?", a: ["Build n Live", "Buy n Large", "Beyond n Limits", "Better n Larger"], c: 1 },
+                    { q: "월-E가 낡은 냉장고 안에서 발견한 소중한 것은?", a: ["작은 식물", "이브의 부품", "황금 동전", "다이아몬드"], c: 0 },
+                    { q: "이브가 여러 언어를 할 때, 월-E가 반응한 단어는?", a: ["Hello", "Directive", "Robot", "Name"], c: 1 },
+                    { q: "액시엄 호 사람들은 서로 어떻게 대화하나요?", a: ["직접 만나서", "홀로그램 화면", "텔레파시", "편지"], c: 1 },
+                    { q: "월-E가 식물을 주자 이브는 어떻게 행동했나요?", a: ["먹어버림", "스캔 후 보관하며 정지", "버림", "춤을 춤"], c: 1 },
+                    { q: "오토는 왜 식물을 파괴하려 했나요?", a: ["독성이 있어서", "Directive A113 비밀 명령", "식물을 싫어해서", "에너지 소비"], c: 1 },
+                    { q: "역대 선장들 사진 배경에서 발견되는 것은?", a: ["지구", "오토(Autopilot)", "이브", "BnL 로고"], c: 1 },
+                    { q: "식물의 발견은 매뉴얼상 무엇을 의미하나요?", a: ["산소 부족", "인류 멸망", "지구 귀환 가능", "로봇의 시대"], c: 2 },
+                    { q: "액시엄 호는 지구에 어떻게 도착했나요?", a: ["추락", "하이퍼점프", "견인", "수동 운행"], c: 1 },
+                    { q: "결벽증이 있는 청소 로봇의 이름은?", a: ["M-O", "B-L", "V-A", "C-P"], c: 0 },
+                    { q: "월-E 덕분에 만난 커플의 이름은?", a: ["존과 메리", "잭과 로즈", "톰과 제리", "아담과 이브"], c: 0 },
+                    { q: "월-E는 우주에서 무엇을 추진체로 썼나요?", a: ["엔진", "소화기", "선풍기", "압축 공기"], c: 1 },
+                    { q: "월-E는 에너지를 어디서 얻나요?", a: ["가솔린", "배터리", "태양광 패널", "원자력"], c: 2 },
+                    { q: "선장은 지구에 가면 아이들이 무엇을 잘하게 될 거라 했나요?", a: ["달리기", "농사(Farming)", "수영", "노래"], c: 1 },
+                    { q: "엔딩 크레딧 장면에서 선장은 무엇을 하나요?", a: ["잠자기", "사람들에게 농사 교육", "우주로 떠남", "월-E 수리"], c: 1 }
                 ]
             },
             en: {
                 status: "STATUS: STABLE",
-                error: "STATUS: CRITICAL ERROR",
+                error: "STATUS: LOCKDOWN (15s)",
+                lockdown: "SYSTEM LOCKDOWN",
                 reboot: "REBOOT SYSTEM",
                 finishTitle: "MISSION ACCOMPLISHED",
-                finishText: "Congratulations! You decoded all 20 security codes and safely landed the Axiom on Earth. The future of humanity is now in your hands!",
+                finishText: "Congratulations! You safely landed the Axiom on Earth. The future of humanity is now in your hands!",
+                hallLabel: "ENGLISH HALL OF FAME",
+                rankLabel: "ENGLISH",
                 questions: [
                     { q: "Where did WALL-E work?", a: ["Mars", "The Moon", "Earth", "The Axiom"], c: 2 },
-                    { q: "WALL-E had a friend. What kind of creature was it?", a: ["Dog", "Cockroach", "Mouse", "Cat"], c: 1 },
-                    { q: "Which company owned all enterprises at the beginning, including shops, banks, and space travel?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni Consumer Products"], c: 0 },
-                    { q: "How does WALL-E amuse himself in the evening at home?", a: ["Watching news", "Playing video games", "Watching 'Hello, Dolly!'", "Sleeping"], c: 2 },
-                    { q: "What did the rocket have to crash through when it took EVE and WALL-E away?", a: ["Clouds", "Satellite junk", "Asteroids", "Ice"], c: 1 },
-                    { q: "In the movie, what does 'BnL' stand for?", a: ["Better n Larger", "Build n Live", "Buy n Large", "Beyond n Limits"], c: 2 },
-                    { q: "What does he find when he pries the door off an old refrigerator?", a: ["A small plant", "EVE's parts", "Gold coins", "Diamond ring"], c: 0 },
-                    { q: "What English word does WALL-E respond to when EVE tries different languages?", a: ["Hello", "Directive", "Robot", "Name"], c: 1 },
-                    { q: "How did people speak to each other on the Axiom?", a: ["In person", "Via hologram screens", "Telepathy", "Writing letters"], c: 1 },
-                    { q: "What does EVE do when WALL-E offers her the plant?", a: ["Eats it", "Scans it and shuts down", "Throws it away", "Dances"], c: 1 },
-                    { q: "Why did the autopilot try to destroy the plant?", a: ["It was toxic", "Secret Directive A113", "It hated plants", "Energy consumption"], c: 1 },
-                    { q: "What is seen in the background of the Axiom captains' pictures?", a: ["Earth", "Auto (Autopilot)", "EVE models", "BnL logo"], c: 1 },
-                    { q: "According to the manual, what does a plant specimen mean?", a: ["No oxygen on Earth", "Extinction", "Safe to return to Earth", "Robot era"], c: 2 },
-                    { q: "How did the Axiom get back to Earth?", a: ["Crashed", "Hyperjump", "Towed by another ship", "Manual flying"], c: 1 },
+                    { q: "WALL-E's only friend was a...", a: ["Dog", "Cockroach", "Mouse", "Cat"], c: 1 },
+                    { q: "Which company owned all enterprises at the beginning?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni"], c: 0 },
+                    { q: "What musical does WALL-E watch in the evening?", a: ["Sound of Music", "La La Land", "Hello, Dolly!", "Mamma Mia"], c: 2 },
+                    { q: "What did the rocket crash through when leaving Earth?", a: ["Clouds", "Satellite junk", "Asteroids", "Solar winds"], c: 1 },
+                    { q: "In the movie, what does 'BnL' stand for?", a: ["Build n Live", "Buy n Large", "Beyond n Limits", "Better n Larger"], c: 1 },
+                    { q: "What does he find inside an old refrigerator?", a: ["A small plant", "EVE's parts", "Gold coins", "Diamond"], c: 0 },
+                    { q: "What English word does WALL-E respond to?", a: ["Hello", "Directive", "Robot", "Name"], c: 1 },
+                    { q: "How did people speak to each other on the Axiom?", a: ["In person", "Via holograms", "Telepathy", "Letters"], c: 1 },
+                    { q: "What does EVE do when WALL-E offers the plant?", a: ["Eats it", "Scans it and shuts down", "Throws it away", "Dances"], c: 1 },
+                    { q: "Why did the autopilot try to destroy the plant?", a: ["Toxic", "Directive A113", "Hated plants", "Energy"], c: 1 },
+                    { q: "What is seen in the background of the captains' photos?", a: ["Earth", "Auto", "EVE models", "BnL logo"], c: 1 },
+                    { q: "According to the manual, a plant specimen means...", a: ["No oxygen", "Extinction", "Safe to return", "Robot era"], c: 2 },
+                    { q: "How did the Axiom get back to Earth?", a: ["Crashed", "Hyperjump", "Towed", "Manual"], c: 1 },
                     { q: "What is the name of the cleaning robot?", a: ["M-O", "B-L", "V-A", "C-P"], c: 0 },
                     { q: "What is the name of the couple who meet thanks to WALL-E?", a: ["John and Mary", "Jack and Rose", "Tom and Jerry", "Adam and Eve"], c: 0 },
-                    { q: "How does he propel himself in space?", a: ["Rocket engine", "Fire extinguisher", "Fan", "Compressed air"], c: 1 },
-                    { q: "Where did WALL-E get his energy from?", a: ["Gasoline", "Battery replacement", "Solar panels", "Nuclear"], c: 2 },
-                    { q: "What does Captain McCrae tell the children they will be great at on Earth?", a: ["Running", "Farming", "Swimming", "Singing"], c: 1 },
-                    { q: "What is the Captain doing at the end of the movie?", a: ["Sleeping", "Teaching people to farm", "Leaving for space", "Repairing WALL-E"], c: 1 }
+                    { q: "How does he propel himself in space?", a: ["Engine", "Fire extinguisher", "Fan", "Compressed air"], c: 1 },
+                    { q: "Where did WALL-E get his energy from?", a: ["Gasoline", "Battery", "Solar panels", "Nuclear"], c: 2 },
+                    { q: "Captain McCrae says children will be great at...", a: ["Running", "Farming", "Swimming", "Singing"], c: 1 },
+                    { q: "What is the Captain doing at the end of the movie?", a: ["Sleeping", "Teaching farming", "Leaving", "Repairing"], c: 1 }
                 ]
             }
         };
 
         let currentStage = 0;
         let selectedLang = 'ko';
-        
+        let nickname = "";
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let isLocked = false;
+        let startTime = null;
+
+        // Init Auth
+        const initAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await auth.signInWithCustomToken(__initial_auth_token);
+            } else {
+                await auth.signInAnonymously();
+            }
+        };
+        initAuth();
+
         function createStars() {
             const bg = document.getElementById('space-bg');
             for (let i = 0; i < 150; i++) {
@@ -190,12 +290,34 @@
             }
         }
 
+        function checkNickname(lang) {
+            const input = document.getElementById('nickname-input');
+            nickname = input.value.trim();
+            if (nickname.length < 2) {
+                input.classList.add('border-red-500');
+                return;
+            }
+            startGame(lang);
+        }
+
         function startGame(lang) {
             selectedLang = lang;
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('quiz-screen').classList.remove('hidden');
-            document.getElementById('score-indicator').innerText = translations[lang].status;
+            document.getElementById('game-header').classList.remove('hidden');
+            document.getElementById('display-nickname').innerText = nickname;
+            document.getElementById('lockdown-text').innerText = translations[lang].lockdown;
+            
+            startTime = Date.now();
+            timerInterval = setInterval(updateTimer, 1000);
             showQuestion();
+        }
+
+        function updateTimer() {
+            timerSeconds = Math.floor((Date.now() - startTime) / 1000);
+            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const secs = String(timerSeconds % 60).padStart(2, '0');
+            document.getElementById('display-timer').innerText = `${mins}:${secs}`;
         }
 
         function showQuestion() {
@@ -211,14 +333,15 @@
             
             q.a.forEach((option, index) => {
                 const btn = document.createElement('button');
-                btn.className = 'option-btn w-full text-left p-4 rounded-xl bg-white/5 hover:bg-blue-600/30 transition-all';
-                btn.innerHTML = `<span class="orbitron mr-4 text-blue-400">0${index + 1}</span> ${option}`;
+                btn.className = 'option-btn w-full text-left p-4 rounded-xl bg-white/5 orbitron hover:bg-blue-600/30 transition-all';
+                btn.innerHTML = `<span class="mr-4 text-blue-400">0${index + 1}</span> ${option}`;
                 btn.onclick = () => checkAnswer(index);
                 container.appendChild(btn);
             });
         }
 
         function checkAnswer(index) {
+            if (isLocked) return;
             const langData = translations[selectedLang];
             if (index === langData.questions[currentStage].c) {
                 currentStage++;
@@ -228,27 +351,116 @@
                     finishGame();
                 }
             } else {
-                const card = document.querySelector('.card');
-                card.classList.add('animate-bounce');
-                const indicator = document.getElementById('score-indicator');
-                indicator.innerText = langData.error;
-                indicator.classList.replace('text-green-400', 'text-red-500');
-                
-                setTimeout(() => {
-                    card.classList.remove('animate-bounce');
-                    indicator.innerText = langData.status;
-                    indicator.classList.replace('text-red-500', 'text-green-400');
-                }, 500);
+                startPenalty();
             }
         }
 
-        function finishGame() {
+        function startPenalty() {
+            isLocked = true;
             const langData = translations[selectedLang];
+            const overlay = document.getElementById('penalty-timer');
+            const countdownEl = document.getElementById('penalty-countdown');
+            const statusEl = document.getElementById('score-indicator');
+            
+            overlay.style.display = 'flex';
+            statusEl.innerText = langData.error;
+            statusEl.classList.replace('text-green-400', 'text-red-500');
+            
+            let count = 15;
+            countdownEl.innerText = count;
+            
+            const btns = document.querySelectorAll('.option-btn');
+            btns.forEach(b => b.disabled = true);
+
+            const pInterval = setInterval(() => {
+                count--;
+                countdownEl.innerText = count;
+                if (count <= 0) {
+                    clearInterval(pInterval);
+                    overlay.style.display = 'none';
+                    isLocked = false;
+                    statusEl.innerText = langData.status;
+                    statusEl.classList.replace('text-red-500', 'text-green-400');
+                    btns.forEach(b => b.disabled = false);
+                }
+            }, 1000);
+        }
+
+        async function finishGame() {
+            clearInterval(timerInterval);
             document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('game-header').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
+            
+            const langData = translations[selectedLang];
+            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const secs = String(timerSeconds % 60).padStart(2, '0');
+            const timeStr = `${mins}:${secs}`;
+            
             document.getElementById('result-title').innerText = langData.finishTitle;
             document.getElementById('result-text').innerText = langData.finishText;
+            document.getElementById('final-time').innerText = timeStr;
             document.getElementById('reboot-btn').innerText = langData.reboot;
+            document.getElementById('hall-label').innerText = langData.hallLabel;
+
+            // Save Rank to language-specific collection
+            const collectionName = `leaderboard_${selectedLang}`;
+            if (auth.currentUser) {
+                try {
+                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(collectionName).add({
+                        nickname: nickname,
+                        time: timerSeconds,
+                        timeStr: timeStr,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                } catch (e) { console.error(e); }
+            }
+            loadRanking('final-rank-list', selectedLang);
+        }
+
+        async function loadRanking(containerId, lang) {
+            const list = document.getElementById(containerId);
+            list.innerHTML = `<p class="text-center py-4 orbitron opacity-50">SYNCING ${lang.toUpperCase()} DATA...</p>`;
+            
+            const collectionName = `leaderboard_${lang}`;
+            try {
+                const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(collectionName)
+                    .get();
+                
+                let data = [];
+                snapshot.forEach(doc => data.push(doc.data()));
+                
+                // Rule: Sort by shortest time
+                data.sort((a, b) => a.time - b.time);
+                
+                // Take top 30
+                const top30 = data.slice(0, 30);
+                
+                list.innerHTML = top30.map((entry, i) => `
+                    <div class="flex justify-between items-center p-3 border-b border-white/5 last:border-0">
+                        <div class="flex items-center gap-4">
+                            <span class="orbitron font-bold ${i < 3 ? 'text-yellow-400' : 'text-gray-500'}">#${i + 1}</span>
+                            <span class="font-medium">${entry.nickname}</span>
+                        </div>
+                        <span class="orbitron text-sm text-blue-400">${entry.timeStr}</span>
+                    </div>
+                `).join('') || `<p class="text-center py-4 orbitron opacity-30 text-xs">NO DATA IN ${lang.toUpperCase()} SECTOR</p>`;
+                
+            } catch (e) {
+                list.innerHTML = `<p class="text-center py-4 text-red-400">Error loading ranking.</p>`;
+            }
+        }
+
+        function openLeaderboard(lang) {
+            const modal = document.getElementById('leaderboard-modal');
+            const label = document.getElementById('rank-lang-label');
+            label.innerText = translations[lang].rankLabel;
+            modal.classList.remove('hidden');
+            loadRanking('rank-list', lang);
+        }
+
+        function closeLeaderboard() {
+            document.getElementById('leaderboard-modal').classList.add('hidden');
         }
 
         window.onload = createStars;
