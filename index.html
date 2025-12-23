@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>월-E: 지구 귀환 방탈출</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDK (v8 compat version for stability) -->
+    <!-- Firebase SDK v8 (호환성이 가장 높고 깃허브 페이지에서 안정적임) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -17,6 +17,7 @@
             background-color: #0a0a1a;
             color: #e0e0e0;
             overflow-x: hidden;
+            margin: 0;
         }
 
         .orbitron { font-family: 'Orbitron', sans-serif; }
@@ -51,6 +52,7 @@
         .option-btn {
             transition: all 0.2s ease;
             border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
         }
 
         .option-btn:not(:disabled):hover {
@@ -101,7 +103,7 @@
             <h1 class="text-6xl font-bold orbitron text-blue-400 tracking-widest mb-4">WALL·E</h1>
             
             <div class="max-w-xs mx-auto space-y-4">
-                <input type="text" id="nickname-input" placeholder="Enter Nickname / 별칭 입력" class="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-center outline-none focus:border-blue-500 transition-all">
+                <input type="text" id="nickname-input" placeholder="Enter Nickname / 별칭 입력" class="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-center outline-none focus:border-blue-500 transition-all text-white">
                 <p class="text-xs text-blue-300 orbitron">SELECT YOUR LANGUAGE / 언어를 선택하세요</p>
             </div>
             
@@ -142,7 +144,7 @@
                     <span class="text-sm orbitron tracking-widest" id="lockdown-text">SYSTEM LOCKDOWN</span>
                 </div>
 
-                <p id="question-text" class="text-2xl font-medium mb-8 leading-relaxed"></p>
+                <p id="question-text" class="text-2xl font-medium mb-8 leading-relaxed text-white"></p>
                 <div id="options-container" class="space-y-4"></div>
             </div>
         </div>
@@ -180,7 +182,7 @@
     </div>
 
     <script>
-        // 1. Firebase Configuration (수정한 API 키 적용됨)
+        // 1. Firebase Config (GitHub Pages 대응용 고정)
         const firebaseConfig = {
             apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ",
             authDomain: "quizWall-E-001.firebaseapp.com",
@@ -190,10 +192,8 @@
             appId: "1:123456789:web:abcdef..."
         };
 
-        // 2. Initialize Firebase
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
 
@@ -272,27 +272,27 @@
         let isLocked = false;
         let startTime = null;
 
-        // 3. Auth Init (Anonymous Login)
-        const initAuth = async () => {
+        // Anonymous Auth (Must be successful for Firestore)
+        async function initAuth() {
             try {
                 await auth.signInAnonymously();
-            } catch (e) {
-                console.error("Auth Error:", e);
+                console.log("Logged in anonymously");
+            } catch (error) {
+                console.error("Auth error:", error);
             }
-        };
-        initAuth();
+        }
 
         function createStars() {
             const bg = document.getElementById('space-bg');
             for (let i = 0; i < 150; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
-                const size = Math.random() * 3 + 'px';
+                const size = (Math.random() * 2 + 1) + 'px';
                 star.style.width = size;
                 star.style.height = size;
                 star.style.top = Math.random() * 100 + '%';
                 star.style.left = Math.random() * 100 + '%';
-                star.style.setProperty('--duration', (Math.random() * 3 + 1) + 's');
+                star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
                 bg.appendChild(star);
             }
         }
@@ -302,6 +302,7 @@
             nickname = input.value.trim();
             if (nickname.length < 2) {
                 input.classList.add('border-red-500');
+                input.placeholder = "2글자 이상 입력하세요!";
                 return;
             }
             startGame(lang);
@@ -316,4 +317,160 @@
             document.getElementById('lockdown-text').innerText = translations[lang].lockdown;
             
             startTime = Date.now();
-            timerInterval
+            timerInterval = setInterval(updateTimer, 1000);
+            showQuestion();
+        }
+
+        function updateTimer() {
+            timerSeconds = Math.floor((Date.now() - startTime) / 1000);
+            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const secs = String(timerSeconds % 60).padStart(2, '0');
+            document.getElementById('display-timer').innerText = `${mins}:${secs}`;
+        }
+
+        function showQuestion() {
+            const langData = translations[selectedLang];
+            const q = langData.questions[currentStage];
+            
+            document.getElementById('level-indicator').innerText = `LEVEL: ${String(currentStage + 1).padStart(2, '0')}/20`;
+            document.getElementById('progress').style.width = `${((currentStage) / 20) * 100}%`;
+            document.getElementById('question-text').innerText = q.q;
+            
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            
+            q.a.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn w-full text-left p-4 rounded-xl bg-white/5 orbitron hover:bg-blue-600/30 transition-all text-white';
+                btn.innerHTML = `<span class="mr-4 text-blue-400">0${index + 1}</span> ${option}`;
+                btn.onclick = () => checkAnswer(index);
+                container.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(index) {
+            if (isLocked) return;
+            const langData = translations[selectedLang];
+            if (index === langData.questions[currentStage].c) {
+                currentStage++;
+                if (currentStage < langData.questions.length) {
+                    showQuestion();
+                } else {
+                    finishGame();
+                }
+            } else {
+                startPenalty();
+            }
+        }
+
+        function startPenalty() {
+            isLocked = true;
+            const langData = translations[selectedLang];
+            const overlay = document.getElementById('penalty-timer');
+            const countdownEl = document.getElementById('penalty-countdown');
+            const statusEl = document.getElementById('score-indicator');
+            
+            overlay.style.display = 'flex';
+            statusEl.innerText = langData.error;
+            statusEl.classList.remove('text-green-400');
+            statusEl.classList.add('text-red-500');
+            
+            let count = 15;
+            countdownEl.innerText = count;
+            
+            const btns = document.querySelectorAll('.option-btn');
+            btns.forEach(b => b.disabled = true);
+
+            const pInterval = setInterval(() => {
+                count--;
+                countdownEl.innerText = count;
+                if (count <= 0) {
+                    clearInterval(pInterval);
+                    overlay.style.display = 'none';
+                    isLocked = false;
+                    statusEl.innerText = langData.status;
+                    statusEl.classList.remove('text-red-500');
+                    statusEl.classList.add('text-green-400');
+                    btns.forEach(b => b.disabled = false);
+                }
+            }, 1000);
+        }
+
+        async function finishGame() {
+            clearInterval(timerInterval);
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('game-header').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            const langData = translations[selectedLang];
+            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const secs = String(timerSeconds % 60).padStart(2, '0');
+            const timeStr = `${mins}:${secs}`;
+            
+            document.getElementById('result-title').innerText = langData.finishTitle;
+            document.getElementById('result-text').innerText = langData.finishText;
+            document.getElementById('final-time').innerText = timeStr;
+            document.getElementById('reboot-btn').innerText = langData.reboot;
+            document.getElementById('hall-label').innerText = langData.hallLabel;
+
+            // Save Record
+            const colName = `ranking_${selectedLang}`;
+            try {
+                await db.collection(colName).add({
+                    nickname: nickname,
+                    time: timerSeconds,
+                    timeStr: timeStr,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (e) {
+                console.error("Save failed:", e);
+            }
+            
+            loadRanking('final-rank-list', selectedLang);
+        }
+
+        async function loadRanking(containerId, lang) {
+            const list = document.getElementById(containerId);
+            list.innerHTML = `<p class="text-center py-4 orbitron opacity-50 text-xs">LOADING ${lang.toUpperCase()}...</p>`;
+            
+            try {
+                const snapshot = await db.collection(`ranking_${lang}`).get();
+                let entries = [];
+                snapshot.forEach(doc => entries.push(doc.data()));
+                
+                // Sort by fastest time
+                entries.sort((a, b) => a.time - b.time);
+                const top30 = entries.slice(0, 30);
+                
+                list.innerHTML = top30.map((entry, i) => `
+                    <div class="flex justify-between items-center p-3 border-b border-white/5 last:border-0">
+                        <div class="flex items-center gap-4">
+                            <span class="orbitron font-bold ${i < 3 ? 'text-yellow-400' : 'text-gray-500'}">#${i + 1}</span>
+                            <span class="font-medium text-white">${entry.nickname}</span>
+                        </div>
+                        <span class="orbitron text-sm text-blue-400">${entry.timeStr}</span>
+                    </div>
+                `).join('') || `<p class="text-center py-4 text-xs opacity-30">NO DATA</p>`;
+            } catch (e) {
+                list.innerHTML = `<p class="text-center text-red-400 text-xs">Error loading data.</p>`;
+            }
+        }
+
+        function openLeaderboard(lang) {
+            const modal = document.getElementById('leaderboard-modal');
+            document.getElementById('rank-lang-label').innerText = translations[lang].rankLabel;
+            modal.classList.remove('hidden');
+            loadRanking('rank-list', lang);
+        }
+
+        function closeLeaderboard() {
+            document.getElementById('leaderboard-modal').classList.add('hidden');
+        }
+
+        window.onload = () => {
+            createStars();
+            initAuth();
+        };
+    </script>
+</body>
+</html>
