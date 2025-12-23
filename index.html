@@ -44,6 +44,22 @@
                 <button onclick="checkNickname('ko')" class="w-48 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full orbitron">KOREAN</button>
                 <button onclick="checkNickname('en')" class="w-48 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-full orbitron">ENGLISH</button>
             </div>
+
+            <!-- Leaderboard Icons -->
+            <div class="flex justify-center gap-8 mt-8">
+                <button onclick="openLeaderboard('ko')" class="flex flex-col items-center group">
+                    <div class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 group-hover:scale-110 transition-transform"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                    </div>
+                    <span class="text-[10px] mt-2 orbitron text-blue-400 uppercase">KR Rank</span>
+                </button>
+                <button onclick="openLeaderboard('en')" class="flex flex-col items-center group">
+                    <div class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400 group-hover:scale-110 transition-transform"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                    </div>
+                    <span class="text-[10px] mt-2 orbitron text-indigo-400 uppercase">EN Rank</span>
+                </button>
+            </div>
         </div>
 
         <!-- Quiz Screen -->
@@ -70,26 +86,40 @@
             </div>
             <button onclick="location.reload()" class="px-8 py-3 bg-white/10 hover:bg-white/20 rounded-full orbitron">REBOOT</button>
         </div>
+
+        <!-- Leaderboard Modal -->
+        <div id="leaderboard-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div class="card max-w-lg w-full p-8 rounded-2xl max-h-[80vh] flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold orbitron text-yellow-400"><span id="rank-lang-label">RANKING</span></h2>
+                    <button onclick="closeLeaderboard()" class="text-gray-400 hover:text-white text-3xl">&times;</button>
+                </div>
+                <div class="overflow-y-auto pr-2 space-y-2" id="modal-rank-list"></div>
+                <button onclick="closeLeaderboard()" class="mt-6 py-3 w-full border border-white/20 rounded-xl hover:bg-white/5 orbitron">CLOSE</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        /** * [필독] 사용자님의 Firebase 설정을 여기에 붙여넣으세요.
-         * 프로젝트명이 quizWall-E라면 projectId는 'quizwall-e-XXXX' 형식일 것입니다.
-         */
+        /** * [필독] 사용자님의 수정된 Firebase 설정입니다. */
         const firebaseConfig = {
-            apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ", // 여기에 실제 API Key 입력
+            apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ", 
             authDomain: "quizwall-e.firebaseapp.com",
-            projectId: "quizwall-e", // 정확한 Project ID 확인 필요
+            projectId: "quizwall-e", 
             storageBucket: "quizwall-e.firebasestorage.app",
             messagingSenderId: "115965203420",
             appId: "1:115965203420:web:8ca714216c5872abe77519"
         };
 
         // Initialize
-        firebase.initializeApp(firebaseConfig);
+        try {
+            firebase.initializeApp(firebaseConfig);
+        } catch(e) { console.error("Firebase Init Error", e); }
+        
         const db = firebase.firestore();
         const auth = firebase.auth();
-        const appId = "1:115965203420:web:8ca714216c5872abe77519"; // 고유 앱 ID
+        // appId는 컬렉션 경로를 구분하는 고유 식별자로 사용됩니다.
+        const appId = "quizwall-e-final"; 
 
         let currentStage = 0;
         let selectedLang = 'ko';
@@ -116,20 +146,23 @@
             ]
         };
 
-        // Authentication FIRST (중요: 랭크 저장을 위해 필수)
         async function startApp() {
             try {
                 await auth.signInAnonymously();
                 console.log("Authenticated");
             } catch (error) {
                 console.error("Auth error:", error);
-                document.getElementById('status-indicator').innerText = "SYSTEM: OFFLINE";
-                document.getElementById('status-indicator').classList.replace('text-green-400', 'text-red-500');
+                const indicator = document.getElementById('status-indicator');
+                if(indicator) {
+                    indicator.innerText = "SYSTEM: OFFLINE";
+                    indicator.classList.replace('text-green-400', 'text-red-500');
+                }
             }
         }
 
         function createStars() {
             const bg = document.getElementById('space-bg');
+            if(!bg) return;
             for (let i = 0; i < 100; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
@@ -209,47 +242,56 @@
             const timeStr = `${mins}:${secs}`;
             document.getElementById('final-time').innerText = timeStr;
 
-            // [CRITICAL] 랭킹 저장 경로 수정 (가이드라인 준수)
-            // /artifacts/{appId}/public/data/ranking_{lang}
             if (auth.currentUser) {
                 try {
+                    // 가이드라인에 따른 엄격한 경로 설정
                     await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(`ranking_${selectedLang}`).add({
                         name: nickname,
                         score: timerSeconds,
                         timeStr: timeStr,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    console.log("Score saved!");
-                } catch (e) {
-                    console.error("Save Error:", e);
-                }
+                    console.log("Score saved successfully");
+                } catch (e) { console.error("Save Error:", e); }
             }
-            loadRanking();
+            loadRanking('final-rank-list', selectedLang);
         }
 
-        async function loadRanking() {
-            const list = document.getElementById('final-rank-list');
+        async function loadRanking(containerId, lang) {
+            const list = document.getElementById(containerId);
+            if(!list) return;
             list.innerHTML = `<p class="text-center opacity-50 orbitron text-[10px]">SYNCING WITH SATELLITE...</p>`;
             
             try {
-                // 단순 쿼리 후 메모리에서 정렬 (Rule 2 준수)
-                const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(`ranking_${selectedLang}`).get();
+                const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(`ranking_${lang}`).get();
                 let data = [];
                 snapshot.forEach(doc => data.push(doc.data()));
                 
+                // JavaScript 메모리에서 정렬
                 data.sort((a, b) => a.score - b.score);
-                const top10 = data.slice(0, 10);
+                const top10 = data.slice(0, 15);
 
                 list.innerHTML = top10.map((r, i) => `
                     <div class="flex justify-between items-center p-2 border-b border-white/5">
-                        <span class="orbitron text-xs ${i < 3 ? 'text-yellow-400' : 'text-gray-400'}">#0${i+1} ${r.name}</span>
+                        <span class="orbitron text-xs ${i < 3 ? 'text-yellow-400' : 'text-gray-400'}">#${String(i+1).padStart(2,'0')} ${r.name}</span>
                         <span class="orbitron text-xs text-blue-400">${r.timeStr}</span>
                     </div>
-                `).join('') || `<p class="text-center opacity-30 text-xs">NO DATA</p>`;
+                `).join('') || `<p class="text-center opacity-30 text-xs py-4">NO MISSION DATA</p>`;
             } catch (e) {
                 console.error("Load Error:", e);
-                list.innerHTML = `<p class="text-center text-red-500 text-[10px]">DATABASE ERROR</p>`;
+                list.innerHTML = `<p class="text-center text-red-500 text-[10px] py-4">DATABASE OFFLINE</p>`;
             }
+        }
+
+        function openLeaderboard(lang) {
+            const modal = document.getElementById('leaderboard-modal');
+            document.getElementById('rank-lang-label').innerText = lang === 'ko' ? 'KOREAN RANKING' : 'ENGLISH RANKING';
+            modal.classList.remove('hidden');
+            loadRanking('modal-rank-list', lang);
+        }
+
+        function closeLeaderboard() {
+            document.getElementById('leaderboard-modal').classList.add('hidden');
         }
 
         window.onload = () => { createStars(); startApp(); };
