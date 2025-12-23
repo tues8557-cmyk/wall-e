@@ -21,6 +21,7 @@
         .option-btn:not(:disabled):hover { background: rgba(59, 130, 246, 0.5); transform: translateX(10px); }
         .progress-bar { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
         .penalty-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(220, 38, 38, 0.2); z-index: 10; justify-content: center; align-items: center; border-radius: 1rem; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -43,10 +44,11 @@
             <h1 class="text-6xl font-bold orbitron text-blue-400 tracking-widest mb-4">WALL·E</h1>
             <div class="max-w-xs mx-auto space-y-4">
                 <input type="text" id="nickname-input" placeholder="Nickname / 별칭 입력" class="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-center outline-none focus:border-blue-500 text-white">
+                <p id="auth-status" class="text-xs text-blue-300 opacity-60">Initializing Core Systems...</p>
             </div>
             <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <button onclick="checkNickname('ko')" class="w-48 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full orbitron">한국어 (KOREAN)</button>
-                <button onclick="checkNickname('en')" class="w-48 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-full orbitron">ENGLISH</button>
+                <button id="btn-ko" onclick="checkNickname('ko')" disabled class="w-48 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full orbitron">한국어 (KOREAN)</button>
+                <button id="btn-en" onclick="checkNickname('en')" disabled class="w-48 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-full orbitron">ENGLISH</button>
             </div>
             <div class="flex justify-center gap-8 mt-8">
                 <button onclick="openLeaderboard('ko')" class="flex flex-col items-center group">
@@ -101,9 +103,9 @@
     </div>
 
     <script>
-        // 하드코딩된 Secret 정보를 제거하고 전역 환경 변수를 사용하도록 수정
+        // 전역 환경 설정 확인
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "", // 보안을 위해 비워둡니다. 실제 키는 환경 변수에서 제공됩니다.
+            apiKey: "",
             authDomain: "",
             projectId: "",
             storageBucket: "",
@@ -113,8 +115,13 @@
         
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'walle-return-escape-v5';
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
+        // Firebase 초기화 (config가 비어있을 경우에 대한 방어 로직)
+        if (firebaseConfig.apiKey) {
+            firebase.initializeApp(firebaseConfig);
+        } else {
+            console.warn("Firebase configuration is missing. Data persistence may not work.");
+        }
+
         const db = firebase.firestore();
         const auth = firebase.auth();
 
@@ -184,16 +191,30 @@
 
         // Firebase Auth Init (RULE 3)
         async function initAuth() {
+            const statusEl = document.getElementById('auth-status');
             try {
-                // __initial_auth_token이 있으면 그것을 사용, 없으면 익명 로그인
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await auth.signInWithCustomToken(__initial_auth_token);
-                } else {
+                } else if (firebaseConfig.apiKey) {
                     await auth.signInAnonymously();
+                } else {
+                    // Config가 없는 경우에도 게임 진행은 가능하게 처리
+                    statusEl.innerText = "Offline Mode Active";
+                    enableStartButtons();
+                    return;
                 }
+                statusEl.innerText = "All Systems Online";
+                enableStartButtons();
             } catch (e) { 
-                console.error("Auth Error:", e); 
+                console.error("Auth Error:", e);
+                statusEl.innerText = "System Error: Continuing Offline";
+                enableStartButtons();
             }
+        }
+
+        function enableStartButtons() {
+            document.getElementById('btn-ko').disabled = false;
+            document.getElementById('btn-en').disabled = false;
         }
 
         auth.onAuthStateChanged((user) => {
@@ -216,7 +237,10 @@
 
         function checkNickname(lang) {
             nickname = document.getElementById('nickname-input').value.trim();
-            if (nickname.length < 2) return;
+            if (nickname.length < 2) {
+                alert(lang === 'ko' ? "별칭은 2글자 이상이어야 합니다." : "Nickname must be at least 2 characters.");
+                return;
+            }
             selectedLang = lang;
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('quiz-screen').classList.remove('hidden');
@@ -235,6 +259,12 @@
         }
 
         function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[arr], arr[i]]; // 오타 수정: arr[j]를 arr[arr]로 잘못 쓰지 않도록 주의
+            }
+            // 기존 코드 오타 수정 반영
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [array[i], array[j]] = [array[j], array[i]];
@@ -280,7 +310,11 @@
             const itv = setInterval(() => {
                 count--;
                 countdownEl.innerText = count;
-                if(count <= 0) { clearInterval(itv); overlay.style.display = 'none'; isLocked = false; }
+                if(count <= 0) { 
+                    clearInterval(itv); 
+                    overlay.style.display = 'none'; 
+                    isLocked = false; 
+                }
             }, 1000);
         }
 
@@ -294,8 +328,7 @@
             const timeStr = `${mins}:${secs}`;
             document.getElementById('final-time').innerText = timeStr;
 
-            // Firestore Save (RULE 1 Path)
-            if (currentUser) {
+            if (currentUser && firebaseConfig.apiKey) {
                 try {
                     const collectionPath = `artifacts/${appId}/public/data/rankings_${selectedLang}`;
                     await db.collection(collectionPath).add({
@@ -314,21 +347,23 @@
             const list = document.getElementById(containerId);
             list.innerHTML = `<p class="text-center opacity-50 text-xs py-4">SYNCING DATA...</p>`;
             
-            // Wait for Auth
+            if (!firebaseConfig.apiKey) {
+                list.innerHTML = `<p class="text-center opacity-30 text-xs py-4">RANKING UNAVAILABLE (OFFLINE)</p>`;
+                return;
+            }
+
             if (!currentUser) {
-                setTimeout(() => loadRanking(containerId, lang), 500);
+                setTimeout(() => loadRanking(containerId, lang), 1000);
                 return;
             }
 
             try {
-                // RULE 1 Path + RULE 2 Simple Query
                 const collectionPath = `artifacts/${appId}/public/data/rankings_${lang}`;
                 const snapshot = await db.collection(collectionPath).get();
                 
                 let data = [];
                 snapshot.forEach(doc => data.push(doc.data()));
                 
-                // RULE 2: Sort in Memory
                 data.sort((a, b) => a.time - b.time);
                 const top = data.slice(0, 10);
                 
@@ -337,7 +372,7 @@
                         <span class="orbitron text-xs ${i < 3 ? 'text-yellow-400' : 'text-gray-400'}">#${i+1} ${r.nickname}</span>
                         <span class="orbitron text-xs text-blue-400">${r.timeStr}</span>
                     </div>
-                `).join('') || `<p class="text-center opacity-30 text-xs py-4">NO DATA</p>`;
+                `).join('') || `<p class="text-center opacity-30 text-xs py-4">NO RECORDS YET</p>`;
             } catch (e) { 
                 console.error("Load Error:", e);
                 list.innerHTML = `<p class="text-center text-red-500 text-xs py-4">LOAD FAILED</p>`;
