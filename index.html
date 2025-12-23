@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>월-E: 지구 귀환 방탈출</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDK v8 (호환성 및 안정성 최우선) -->
+    <!-- Firebase SDK v8 -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -45,7 +45,7 @@
                 <button onclick="checkNickname('en')" class="w-48 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-full orbitron">ENGLISH</button>
             </div>
 
-            <!-- Leaderboard Icons -->
+            <!-- Rank Icons -->
             <div class="flex justify-center gap-8 mt-8">
                 <button onclick="openLeaderboard('ko')" class="flex flex-col items-center group">
                     <div class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all">
@@ -67,6 +67,9 @@
             <div class="card p-8 rounded-2xl relative">
                 <div id="penalty-timer" class="penalty-overlay flex-col">
                     <span class="text-4xl font-bold orbitron text-white" id="penalty-countdown">15</span>
+                </div>
+                <div class="flex justify-between items-center mb-4">
+                    <span class="orbitron text-blue-400 text-xs">STAGE <span id="stage-num">01</span> / 20</span>
                 </div>
                 <p id="question-text" class="text-2xl font-medium mb-8 leading-relaxed text-white"></p>
                 <div id="options-container" class="space-y-4"></div>
@@ -101,7 +104,6 @@
     </div>
 
     <script>
-        /** * [필독] 사용자님의 수정된 Firebase 설정입니다. */
         const firebaseConfig = {
             apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ", 
             authDomain: "quizwall-e.firebaseapp.com",
@@ -111,15 +113,10 @@
             appId: "1:115965203420:web:8ca714216c5872abe77519"
         };
 
-        // Initialize
-        try {
-            firebase.initializeApp(firebaseConfig);
-        } catch(e) { console.error("Firebase Init Error", e); }
-        
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
-        // appId는 컬렉션 경로를 구분하는 고유 식별자로 사용됩니다.
-        const appId = "quizwall-e-final"; 
+        const appId = "walle-earth-escape-v2";
 
         let currentStage = 0;
         let selectedLang = 'ko';
@@ -132,37 +129,63 @@
         const questions = {
             ko: [
                 { q: "월-E는 어디서 일하고 있었나요?", a: ["화성", "달", "지구", "액시엄 호"], c: 2 },
-                { q: "월-E에게는 유일한 친구가 있었습니다. 어떤 생물이었나요?", a: ["강아지", "바퀴벌레", "쥐", "고양이"], c: 1 },
-                { q: "상점, 은행, 철도를 소유한 거대 기업의 이름은?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni"], c: 0 },
-                { q: "월-E가 저녁에 집에서 즐겨 보는 뮤지컬 영화는?", a: ["사운드 오브 뮤직", "라라랜드", "헬로 돌리", "맘마미아"], c: 2 },
-                { q: "이브를 태운 로켓이 지구를 떠날 때 뚫고 지나간 것은?", a: ["구름", "인공위성 쓰레기", "소행성", "태양풍"], c: 1 }
+                { q: "월-E의 유일한 친구였던 생물은?", a: ["강아지", "바퀴벌레", "쥐", "고양이"], c: 1 },
+                { q: "지구의 모든 것을 소유했던 거대 기업의 이름은?", a: ["BnL", "Cyberdyne", "Weyland", "Omni"], c: 0 },
+                { q: "월-E가 매일 보는 뮤지컬 영화 제목은?", a: ["라라랜드", "헬로 돌리", "맘마미아", "캣츠"], c: 1 },
+                { q: "로켓이 지구를 떠날 때 뚫고 지나간 것은?", a: ["인공위성 쓰레기", "구름", "소행성", "태양풍"], c: 0 },
+                { q: "월-E가 완충되었을 때 나는 소리는?", a: ["띵!", "딩!", "삐빅", "부웅"], c: 1 },
+                { q: "이브(EVE)의 원래 임무는 무엇이었나요?", a: ["청소", "식물 탐사", "인간 감시", "지도 제작"], c: 1 },
+                { q: "월-E가 이브에게 가장 먼저 보여준 보물은?", a: ["포크숟가락", "전구", "소화기", "식물"], c: 3 },
+                { q: "이브의 무기 명칭은?", a: ["레이저 캐논", "플라스마 암", "이온 블래스터", "포톤 건"], c: 1 },
+                { q: "이브가 식물을 발견했을 때 몸에 나타난 문양은?", a: ["번개", "식물 잎", "하트", "별"], c: 1 },
+                { q: "액시엄 호의 자동 조종 장치 이름은?", a: ["HAL", "오토(AUTO)", "자비스", "써니"], c: 1 },
+                { q: "액시엄 호의 선장이 키우던 동물은?", a: ["없음", "가상의 물고기", "로봇 개", "홀로그램 새"], c: 0 },
+                { q: "월-E가 우주에서 소화기를 사용한 이유는?", a: ["불을 끄기 위해", "추진력을 얻기 위해", "이브를 공격하려고", "청소하려고"], c: 1 },
+                { q: "액시엄 호에서 사람들을 돌보는 로봇들의 공통 명칭은?", a: ["GO-4", "M-O", "Type-S", "WALL-A"], c: 0 },
+                { q: "오염 물질을 극도로 싫어하는 청소 로봇의 이름은?", a: ["M-O", "D-X", "Clean-E", "Spot"], c: 0 },
+                { q: "BnL의 CEO 이름은 무엇이었나요?", a: ["포비", "쉘비 포스라이트", "머스크", "잡스"], c: 1 },
+                { q: "이브가 우주선에 타기 전 월-E에게 준 물건은?", a: ["라이터", "손", "반지", "없음"], c: 1 },
+                { q: "선장이 일어서서 걷기 시작할 때 배경음악은?", a: ["짜라투스트라는 이렇게 말했다", "운명", "백조의 호수", "스타워즈"], c: 0 },
+                { q: "영화 마지막에 사람들이 지구에 심은 것은?", a: ["옥수수", "식물(나무)", "꽃", "밀"], c: 1 },
+                { q: "월-E의 이름 약자는 무엇의 줄임말인가요?", a: ["Waste Allocation Load Lifter-Earth", "World Auto Load Life", "Water Air Land Life", "Waste All Light Life"], c: 0 }
             ],
             en: [
                 { q: "Where did WALL-E work?", a: ["Mars", "The Moon", "Earth", "The Axiom"], c: 2 },
-                { q: "WALL-E's only friend was a...", a: ["Dog", "Cockroach", "Mouse", "Cat"], c: 1 },
-                { q: "Which company owned all enterprises?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni"], c: 0 },
-                { q: "What musical does WALL-E watch?", a: ["Sound of Music", "La La Land", "Hello, Dolly!", "Mamma Mia"], c: 2 },
-                { q: "What did the rocket crash through?", a: ["Clouds", "Satellite junk", "Asteroids", "Solar winds"], c: 1 }
+                { q: "What was WALL-E's only friend?", a: ["Dog", "Cockroach", "Mouse", "Cat"], c: 1 },
+                { q: "What was the name of the mega-corporation?", a: ["BnL", "Cyberdyne", "Weyland", "Omni"], c: 0 },
+                { q: "What musical does WALL-E watch?", a: ["La La Land", "Hello, Dolly!", "Mamma Mia", "Cats"], c: 1 },
+                { q: "What did the rocket crash through?", a: ["Satellite junk", "Clouds", "Asteroids", "Solar winds"], c: 0 },
+                { q: "What sound does WALL-E make when charged?", a: ["Beep", "Ding!", "Vroom", "Ta-da"], c: 1 },
+                { q: "What was EVE's directive?", a: ["Cleaning", "Vegetation Evaluator", "Monitoring", "Mapping"], c: 1 },
+                { q: "What was the first treasure shown to EVE?", a: ["Spork", "Light bulb", "Fire extinguisher", "Plant"], c: 3 },
+                { q: "What is EVE's weapon called?", a: ["Laser Cannon", "Plasma Arm", "Ion Blaster", "Photon Gun"], c: 1 },
+                { q: "What symbol appeared on EVE with the plant?", a: ["Lightning", "Leaf", "Heart", "Star"], c: 1 },
+                { q: "What is the autopilot's name?", a: ["HAL", "AUTO", "Jarvis", "Sunny"], c: 1 },
+                { q: "What pet did the Captain have?", a: ["None", "Virtual Fish", "Robot Dog", "Hologram Bird"], c: 0 },
+                { q: "Why did WALL-E use a fire extinguisher in space?", a: ["To put out fire", "For propulsion", "To attack EVE", "To clean"], c: 1 },
+                { q: "Common name for service robots on Axiom?", a: ["GO-4", "M-O", "Type-S", "WALL-A"], c: 0 },
+                { q: "Name of the microbial cleaner robot?", a: ["M-O", "D-X", "Clean-E", "Spot"], c: 0 },
+                { q: "Who was the CEO of BnL?", a: ["Phoebe", "Shelby Forthright", "Musk", "Jobs"], c: 1 },
+                { q: "What did EVE give WALL-E before the ship?", a: ["Lighter", "Hand", "Ring", "Nothing"], c: 1 },
+                { q: "Music when the Captain starts walking?", a: ["Also Sprach Zarathustra", "Fate", "Swan Lake", "Star Wars"], c: 0 },
+                { q: "What did people plant at the end?", a: ["Corn", "Plant(Tree)", "Flower", "Wheat"], c: 1 },
+                { q: "What does WALL-E stand for?", a: ["Waste Allocation Load Lifter-Earth", "World Auto Load Life", "Water Air Land Life", "Waste All Light Life"], c: 0 }
             ]
         };
 
         async function startApp() {
             try {
                 await auth.signInAnonymously();
-                console.log("Authenticated");
+                console.log("Auth Success");
             } catch (error) {
                 console.error("Auth error:", error);
-                const indicator = document.getElementById('status-indicator');
-                if(indicator) {
-                    indicator.innerText = "SYSTEM: OFFLINE";
-                    indicator.classList.replace('text-green-400', 'text-red-500');
-                }
+                document.getElementById('status-indicator').innerText = "SYSTEM: OFFLINE";
+                document.getElementById('status-indicator').classList.replace('text-green-400', 'text-red-500');
             }
         }
 
         function createStars() {
             const bg = document.getElementById('space-bg');
-            if(!bg) return;
             for (let i = 0; i < 100; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
@@ -197,6 +220,7 @@
 
         function showQuestion() {
             const q = questions[selectedLang][currentStage];
+            document.getElementById('stage-num').innerText = String(currentStage + 1).padStart(2, '0');
             document.getElementById('question-text').innerText = q.q;
             const container = document.getElementById('options-container');
             container.innerHTML = '';
@@ -242,17 +266,20 @@
             const timeStr = `${mins}:${secs}`;
             document.getElementById('final-time').innerText = timeStr;
 
-            if (auth.currentUser) {
+            // 인증 재확인 및 저장
+            const user = auth.currentUser;
+            if (user) {
                 try {
-                    // 가이드라인에 따른 엄격한 경로 설정
                     await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(`ranking_${selectedLang}`).add({
                         name: nickname,
                         score: timerSeconds,
                         timeStr: timeStr,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    console.log("Score saved successfully");
-                } catch (e) { console.error("Save Error:", e); }
+                    console.log("Data saved successfully");
+                } catch (e) {
+                    console.error("Save Error:", e);
+                }
             }
             loadRanking('final-rank-list', selectedLang);
         }
@@ -266,8 +293,6 @@
                 const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(`ranking_${lang}`).get();
                 let data = [];
                 snapshot.forEach(doc => data.push(doc.data()));
-                
-                // JavaScript 메모리에서 정렬
                 data.sort((a, b) => a.score - b.score);
                 const top10 = data.slice(0, 15);
 
@@ -276,17 +301,15 @@
                         <span class="orbitron text-xs ${i < 3 ? 'text-yellow-400' : 'text-gray-400'}">#${String(i+1).padStart(2,'0')} ${r.name}</span>
                         <span class="orbitron text-xs text-blue-400">${r.timeStr}</span>
                     </div>
-                `).join('') || `<p class="text-center opacity-30 text-xs py-4">NO MISSION DATA</p>`;
+                `).join('') || `<p class="text-center opacity-30 text-xs py-4">NO DATA</p>`;
             } catch (e) {
-                console.error("Load Error:", e);
-                list.innerHTML = `<p class="text-center text-red-500 text-[10px] py-4">DATABASE OFFLINE</p>`;
+                list.innerHTML = `<p class="text-center text-red-500 text-[10px] py-4">DATABASE ERROR</p>`;
             }
         }
 
         function openLeaderboard(lang) {
-            const modal = document.getElementById('leaderboard-modal');
+            document.getElementById('leaderboard-modal').classList.remove('hidden');
             document.getElementById('rank-lang-label').innerText = lang === 'ko' ? 'KOREAN RANKING' : 'ENGLISH RANKING';
-            modal.classList.remove('hidden');
             loadRanking('modal-rank-list', lang);
         }
 
