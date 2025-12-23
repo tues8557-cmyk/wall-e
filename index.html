@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>월-E: 지구 귀환 방탈출</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    <!-- Firebase SDK (v8 compat version for stability) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+KR:wght@300;500;700&display=swap');
         
@@ -113,7 +114,6 @@
                 </button>
             </div>
 
-            <!-- Leaderboard Icons (Language Specific) -->
             <div class="flex justify-center gap-8 mt-8">
                 <button onclick="openLeaderboard('ko')" class="flex flex-col items-center group">
                     <div class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all">
@@ -137,7 +137,6 @@
             </div>
 
             <div class="card p-8 rounded-2xl relative">
-                <!-- Penalty Timer Overlay -->
                 <div id="penalty-timer" class="penalty-overlay flex-col">
                     <span class="text-4xl font-bold orbitron text-white mb-2" id="penalty-countdown">15</span>
                     <span class="text-sm orbitron tracking-widest" id="lockdown-text">SYSTEM LOCKDOWN</span>
@@ -155,9 +154,7 @@
                     <h2 class="text-2xl font-bold orbitron text-yellow-400"><span id="rank-lang-label"></span> TOP 30</h2>
                     <button onclick="closeLeaderboard()" class="text-gray-400 hover:text-white text-3xl">&times;</button>
                 </div>
-                <div class="overflow-y-auto pr-2 space-y-2" id="rank-list">
-                    <!-- Rank items -->
-                </div>
+                <div class="overflow-y-auto pr-2 space-y-2" id="rank-list"></div>
                 <button onclick="closeLeaderboard()" class="mt-6 py-3 w-full border border-white/20 rounded-xl hover:bg-white/5 orbitron">CLOSE</button>
             </div>
         </div>
@@ -183,19 +180,22 @@
     </div>
 
     <script>
-        // Firebase Configuration
+        // 1. Firebase Configuration (수정한 API 키 적용됨)
         const firebaseConfig = {
-            apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ", // 본인의 API 키
+            apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ",
             authDomain: "quizWall-E-001.firebaseapp.com",
             projectId: "quizWall-E-001",
             storageBucket: "quizWall-E-001.appspot.com",
             messagingSenderId: "123456789",
             appId: "1:123456789:web:abcdef..."
         };
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore(app);
-        const auth = firebase.auth(app);
-        const appId = 'walle-ranking-system'; 
+
+        // 2. Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.firestore();
+        const auth = firebase.auth();
 
         const translations = {
             ko: {
@@ -272,7 +272,7 @@
         let isLocked = false;
         let startTime = null;
 
-        // Init Auth
+        // 3. Auth Init (Anonymous Login)
         const initAuth = async () => {
             try {
                 await auth.signInAnonymously();
@@ -316,161 +316,4 @@
             document.getElementById('lockdown-text').innerText = translations[lang].lockdown;
             
             startTime = Date.now();
-            timerInterval = setInterval(updateTimer, 1000);
-            showQuestion();
-        }
-
-        function updateTimer() {
-            timerSeconds = Math.floor((Date.now() - startTime) / 1000);
-            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
-            const secs = String(timerSeconds % 60).padStart(2, '0');
-            document.getElementById('display-timer').innerText = `${mins}:${secs}`;
-        }
-
-        function showQuestion() {
-            const langData = translations[selectedLang];
-            const q = langData.questions[currentStage];
-            
-            document.getElementById('level-indicator').innerText = `LEVEL: ${String(currentStage + 1).padStart(2, '0')}/20`;
-            document.getElementById('progress').style.width = `${((currentStage) / 20) * 100}%`;
-            document.getElementById('question-text').innerText = q.q;
-            
-            const container = document.getElementById('options-container');
-            container.innerHTML = '';
-            
-            q.a.forEach((option, index) => {
-                const btn = document.createElement('button');
-                btn.className = 'option-btn w-full text-left p-4 rounded-xl bg-white/5 orbitron hover:bg-blue-600/30 transition-all';
-                btn.innerHTML = `<span class="mr-4 text-blue-400">0${index + 1}</span> ${option}`;
-                btn.onclick = () => checkAnswer(index);
-                container.appendChild(btn);
-            });
-        }
-
-        function checkAnswer(index) {
-            if (isLocked) return;
-            const langData = translations[selectedLang];
-            if (index === langData.questions[currentStage].c) {
-                currentStage++;
-                if (currentStage < langData.questions.length) {
-                    showQuestion();
-                } else {
-                    finishGame();
-                }
-            } else {
-                startPenalty();
-            }
-        }
-
-        function startPenalty() {
-            isLocked = true;
-            const langData = translations[selectedLang];
-            const overlay = document.getElementById('penalty-timer');
-            const countdownEl = document.getElementById('penalty-countdown');
-            const statusEl = document.getElementById('score-indicator');
-            
-            overlay.style.display = 'flex';
-            statusEl.innerText = langData.error;
-            statusEl.classList.replace('text-green-400', 'text-red-500');
-            
-            let count = 15;
-            countdownEl.innerText = count;
-            
-            const btns = document.querySelectorAll('.option-btn');
-            btns.forEach(b => b.disabled = true);
-
-            const pInterval = setInterval(() => {
-                count--;
-                countdownEl.innerText = count;
-                if (count <= 0) {
-                    clearInterval(pInterval);
-                    overlay.style.display = 'none';
-                    isLocked = false;
-                    statusEl.innerText = langData.status;
-                    statusEl.classList.replace('text-red-500', 'text-green-400');
-                    btns.forEach(b => b.disabled = false);
-                }
-            }, 1000);
-        }
-
-        async function finishGame() {
-            clearInterval(timerInterval);
-            document.getElementById('quiz-screen').classList.add('hidden');
-            document.getElementById('game-header').classList.add('hidden');
-            document.getElementById('result-screen').classList.remove('hidden');
-            
-            const langData = translations[selectedLang];
-            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
-            const secs = String(timerSeconds % 60).padStart(2, '0');
-            const timeStr = `${mins}:${secs}`;
-            
-            document.getElementById('result-title').innerText = langData.finishTitle;
-            document.getElementById('result-text').innerText = langData.finishText;
-            document.getElementById('final-time').innerText = timeStr;
-            document.getElementById('reboot-btn').innerText = langData.reboot;
-            document.getElementById('hall-label').innerText = langData.hallLabel;
-
-            // Save Rank to language-specific collection
-            const collectionName = `leaderboard_${selectedLang}`;
-            if (auth.currentUser) {
-                try {
-                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(collectionName).add({
-                        nickname: nickname,
-                        time: timerSeconds,
-                        timeStr: timeStr,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                } catch (e) { console.error(e); }
-            }
-            loadRanking('final-rank-list', selectedLang);
-        }
-
-        async function loadRanking(containerId, lang) {
-            const list = document.getElementById(containerId);
-            list.innerHTML = `<p class="text-center py-4 orbitron opacity-50">SYNCING ${lang.toUpperCase()} DATA...</p>`;
-            
-            const collectionName = `leaderboard_${lang}`;
-            try {
-                const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(collectionName)
-                    .get();
-                
-                let data = [];
-                snapshot.forEach(doc => data.push(doc.data()));
-                
-                // Rule: Sort by shortest time
-                data.sort((a, b) => a.time - b.time);
-                
-                // Take top 30
-                const top30 = data.slice(0, 30);
-                
-                list.innerHTML = top30.map((entry, i) => `
-                    <div class="flex justify-between items-center p-3 border-b border-white/5 last:border-0">
-                        <div class="flex items-center gap-4">
-                            <span class="orbitron font-bold ${i < 3 ? 'text-yellow-400' : 'text-gray-500'}">#${i + 1}</span>
-                            <span class="font-medium">${entry.nickname}</span>
-                        </div>
-                        <span class="orbitron text-sm text-blue-400">${entry.timeStr}</span>
-                    </div>
-                `).join('') || `<p class="text-center py-4 orbitron opacity-30 text-xs">NO DATA IN ${lang.toUpperCase()} SECTOR</p>`;
-                
-            } catch (e) {
-                list.innerHTML = `<p class="text-center py-4 text-red-400">Error loading ranking.</p>`;
-            }
-        }
-
-        function openLeaderboard(lang) {
-            const modal = document.getElementById('leaderboard-modal');
-            const label = document.getElementById('rank-lang-label');
-            label.innerText = translations[lang].rankLabel;
-            modal.classList.remove('hidden');
-            loadRanking('rank-list', lang);
-        }
-
-        function closeLeaderboard() {
-            document.getElementById('leaderboard-modal').classList.add('hidden');
-        }
-
-        window.onload = createStars;
-    </script>
-</body>
-</html>
+            timerInterval
