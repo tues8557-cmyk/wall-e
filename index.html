@@ -5,264 +5,91 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>월-E: 지구 귀환 방탈출</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDK v8 (호환성이 가장 높고 깃허브 페이지에서 안정적임) -->
+    <!-- Firebase SDK v8 (호환성 및 안정성 최우선) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+KR:wght@300;500;700&display=swap');
-        
-        body {
-            font-family: 'Noto Sans KR', sans-serif;
-            background-color: #0a0a1a;
-            color: #e0e0e0;
-            overflow-x: hidden;
-            margin: 0;
-        }
-
+        body { font-family: 'Noto Sans KR', sans-serif; background-color: #0a0a1a; color: #e0e0e0; overflow-x: hidden; margin: 0; }
         .orbitron { font-family: 'Orbitron', sans-serif; }
-
-        .space-bg {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%);
-            z-index: -1;
-        }
-
-        .star {
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-            opacity: 0.5;
-            animation: twinkle var(--duration) infinite;
-        }
-
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.3; }
-            50% { opacity: 1; }
-        }
-
-        .card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-
-        .option-btn {
-            transition: all 0.2s ease;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            cursor: pointer;
-        }
-
-        .option-btn:not(:disabled):hover {
-            background: rgba(59, 130, 246, 0.5);
-            transform: translateX(10px);
-        }
-
-        .option-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            filter: grayscale(1);
-        }
-
-        .progress-bar {
-            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .penalty-overlay {
-            display: none;
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(220, 38, 38, 0.2);
-            z-index: 10;
-            justify-content: center;
-            align-items: center;
-            border-radius: 1rem;
-        }
+        .space-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, #1b2735 0%, #090a0f 100%); z-index: -1; }
+        .star { position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twinkle var(--duration) infinite; }
+        @keyframes twinkle { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+        .card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .option-btn:not(:disabled):hover { background: rgba(59, 130, 246, 0.5); transform: translateX(10px); }
+        .penalty-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(220, 38, 38, 0.2); z-index: 10; justify-content: center; align-items: center; border-radius: 1rem; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
     <div class="space-bg" id="space-bg"></div>
 
-    <!-- Header Stats -->
+    <!-- Header -->
     <div id="game-header" class="fixed top-0 left-0 w-full p-4 flex justify-between items-center orbitron text-sm hidden z-50 bg-black/50 backdrop-blur-md">
         <div class="flex gap-6">
             <span class="text-blue-400">USER: <span id="display-nickname" class="text-white">---</span></span>
             <span class="text-yellow-400">TIME: <span id="display-timer" class="text-white">00:00</span></span>
         </div>
-        <div class="flex gap-6">
-            <span id="level-indicator" class="text-blue-400">LEVEL: 01/20</span>
-            <span id="score-indicator" class="text-green-400">STATUS: STABLE</span>
-        </div>
+        <div id="status-indicator" class="text-green-400">SYSTEM: ONLINE</div>
     </div>
 
     <div id="game-container" class="max-w-2xl w-full">
         <!-- Start Screen -->
         <div id="start-screen" class="text-center space-y-8 py-12">
             <h1 class="text-6xl font-bold orbitron text-blue-400 tracking-widest mb-4">WALL·E</h1>
-            
             <div class="max-w-xs mx-auto space-y-4">
-                <input type="text" id="nickname-input" placeholder="Enter Nickname / 별칭 입력" class="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-center outline-none focus:border-blue-500 transition-all text-white">
-                <p class="text-xs text-blue-300 orbitron">SELECT YOUR LANGUAGE / 언어를 선택하세요</p>
+                <input type="text" id="nickname-input" placeholder="Nickname" class="w-full p-4 bg-white/10 border border-white/20 rounded-xl text-center outline-none focus:border-blue-500 text-white">
             </div>
-            
             <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <button onclick="checkNickname('ko')" class="w-48 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full transition-transform transform hover:scale-105 orbitron tracking-wider">
-                    한국어 (KOREAN)
-                </button>
-                <button onclick="checkNickname('en')" class="w-48 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-full transition-transform transform hover:scale-105 orbitron tracking-wider">
-                    ENGLISH
-                </button>
-            </div>
-
-            <div class="flex justify-center gap-8 mt-8">
-                <button onclick="openLeaderboard('ko')" class="flex flex-col items-center group">
-                    <div class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 group-hover:scale-110 transition-transform"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                    </div>
-                    <span class="text-[10px] mt-2 orbitron text-blue-400">KR RANK</span>
-                </button>
-                <button onclick="openLeaderboard('en')" class="flex flex-col items-center group">
-                    <div class="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400 group-hover:scale-110 transition-transform"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                    </div>
-                    <span class="text-[10px] mt-2 orbitron text-indigo-400">EN RANK</span>
-                </button>
+                <button onclick="checkNickname('ko')" class="w-48 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full orbitron">KOREAN</button>
+                <button onclick="checkNickname('en')" class="w-48 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-full orbitron">ENGLISH</button>
             </div>
         </div>
 
-        <!-- Question Screen -->
-        <div id="quiz-screen" class="hidden relative">
-            <div class="w-full bg-gray-800 h-2 rounded-full mb-8 overflow-hidden">
-                <div id="progress" class="progress-bar bg-blue-500 h-full w-0"></div>
-            </div>
-
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden">
             <div class="card p-8 rounded-2xl relative">
                 <div id="penalty-timer" class="penalty-overlay flex-col">
-                    <span class="text-4xl font-bold orbitron text-white mb-2" id="penalty-countdown">15</span>
-                    <span class="text-sm orbitron tracking-widest" id="lockdown-text">SYSTEM LOCKDOWN</span>
+                    <span class="text-4xl font-bold orbitron text-white" id="penalty-countdown">15</span>
                 </div>
-
                 <p id="question-text" class="text-2xl font-medium mb-8 leading-relaxed text-white"></p>
                 <div id="options-container" class="space-y-4"></div>
             </div>
         </div>
 
-        <!-- Leaderboard Modal -->
-        <div id="leaderboard-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div class="card max-w-lg w-full p-8 rounded-2xl max-h-[80vh] flex flex-col">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-2xl font-bold orbitron text-yellow-400"><span id="rank-lang-label"></span> TOP 30</h2>
-                    <button onclick="closeLeaderboard()" class="text-gray-400 hover:text-white text-3xl">&times;</button>
-                </div>
-                <div class="overflow-y-auto pr-2 space-y-2" id="rank-list"></div>
-                <button onclick="closeLeaderboard()" class="mt-6 py-3 w-full border border-white/20 rounded-xl hover:bg-white/5 orbitron">CLOSE</button>
-            </div>
-        </div>
-
         <!-- Result Screen -->
-        <div id="result-screen" class="hidden text-center space-y-8 py-12">
-            <h2 id="result-title" class="text-5xl font-bold orbitron mb-4">MISSION ACCOMPLISHED</h2>
-            <div class="card p-6 rounded-xl inline-block mb-4">
-                <p class="orbitron text-gray-400 text-sm">FINAL CLEAR TIME</p>
+        <div id="result-screen" class="hidden text-center space-y-6 py-12">
+            <h2 class="text-4xl font-bold orbitron text-blue-400">MISSION CLEAR</h2>
+            <div class="card p-6 rounded-xl inline-block">
+                <p class="orbitron text-gray-400 text-sm">CLEAR TIME</p>
                 <p id="final-time" class="text-3xl font-bold text-yellow-400">00:00</p>
             </div>
-            <p id="result-text" class="text-xl text-gray-300"></p>
-            
-            <div id="final-rank-view" class="max-w-md mx-auto mt-8">
-                <h3 class="orbitron text-blue-400 mb-4" id="hall-label">HALL OF FAME</h3>
-                <div id="final-rank-list" class="space-y-2 text-left bg-black/30 p-4 rounded-xl"></div>
+            <div class="max-w-md mx-auto mt-4 bg-black/40 p-6 rounded-2xl">
+                <h3 class="orbitron text-sm text-blue-400 mb-4 tracking-widest">TOP RANKINGS</h3>
+                <div id="final-rank-list" class="space-y-2 text-left"></div>
             </div>
-
-            <button onclick="location.reload()" id="reboot-btn" class="mt-8 px-10 py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-full transition-transform transform hover:scale-110 orbitron">
-                REBOOT SYSTEM
-            </button>
+            <button onclick="location.reload()" class="px-8 py-3 bg-white/10 hover:bg-white/20 rounded-full orbitron">REBOOT</button>
         </div>
     </div>
 
     <script>
-        // 1. Firebase Config (GitHub Pages 대응용 고정)
+        /** * [필독] 사용자님의 Firebase 설정을 여기에 붙여넣으세요.
+         * 프로젝트명이 quizWall-E라면 projectId는 'quizwall-e-XXXX' 형식일 것입니다.
+         */
         const firebaseConfig = {
-            apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ",
-            authDomain: "quizWall-E-001.firebaseapp.com",
-            projectId: "quizWall-E-001",
-            storageBucket: "quizWall-E-001.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef..."
+            apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ", // 여기에 실제 API Key 입력
+            authDomain: "quizwall-e.firebaseapp.com",
+            projectId: "quizwall-e", // 정확한 Project ID 확인 필요
+            storageBucket: "quizwall-e.firebasestorage.app",
+            messagingSenderId: "115965203420",
+            appId: "1:115965203420:web:8ca714216c5872abe77519"
         };
 
-        // Initialize Firebase
+        // Initialize
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
-
-        const translations = {
-            ko: {
-                status: "상태: 정상",
-                error: "상태: 시스템 고정 (15초)",
-                lockdown: "시스템 폐쇄",
-                reboot: "시스템 재부팅",
-                finishTitle: "미션 완료",
-                finishText: "축하합니다! 액시엄 호를 무사히 지구에 착륙시켰습니다. 인류의 미래가 당신의 손에 있습니다!",
-                hallLabel: "한국어 명예의 전당",
-                rankLabel: "한국어",
-                questions: [
-                    { q: "월-E는 어디서 일하고 있었나요?", a: ["화성", "달", "지구", "액시엄 호"], c: 2 },
-                    { q: "월-E에게는 유일한 친구가 있었습니다. 어떤 생물이었나요?", a: ["강아지", "바퀴벌레", "쥐", "고양이"], c: 1 },
-                    { q: "상점, 은행, 철도를 소유한 거대 기업의 이름은?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni"], c: 0 },
-                    { q: "월-E가 저녁에 집에서 즐겨 보는 뮤지컬 영화는?", a: ["사운드 오브 뮤직", "라라랜드", "헬로 돌리", "맘마미아"], c: 2 },
-                    { q: "이브를 태운 로켓이 지구를 떠날 때 뚫고 지나간 것은?", a: ["구름", "인공위성 쓰레기", "소행성", "태양풍"], c: 1 },
-                    { q: "영화에서 'BnL'은 무엇의 약자인가요?", a: ["Build n Live", "Buy n Large", "Beyond n Limits", "Better n Larger"], c: 1 },
-                    { q: "월-E가 낡은 냉장고 안에서 발견한 소중한 것은?", a: ["작은 식물", "이브의 부품", "황금 동전", "다이아몬드"], c: 0 },
-                    { q: "이브가 여러 언어를 할 때, 월-E가 반응한 단어는?", a: ["Hello", "Directive", "Robot", "Name"], c: 1 },
-                    { q: "액시엄 호 사람들은 서로 어떻게 대화하나요?", a: ["직접 만나서", "홀로그램 화면", "텔레파시", "편지"], c: 1 },
-                    { q: "월-E가 식물을 주자 이브는 어떻게 행동했나요?", a: ["먹어버림", "스캔 후 보관하며 정지", "버림", "춤을 춤"], c: 1 },
-                    { q: "오토는 왜 식물을 파괴하려 했나요?", a: ["독성이 있어서", "Directive A113 비밀 명령", "식물을 싫어해서", "에너지 소비"], c: 1 },
-                    { q: "역대 선장들 사진 배경에서 발견되는 것은?", a: ["지구", "오토(Autopilot)", "이브", "BnL 로고"], c: 1 },
-                    { q: "식물의 발견은 매뉴얼상 무엇을 의미하나요?", a: ["산소 부족", "인류 멸망", "지구 귀환 가능", "로봇의 시대"], c: 2 },
-                    { q: "액시엄 호는 지구에 어떻게 도착했나요?", a: ["추락", "하이퍼점프", "견인", "수동 운행"], c: 1 },
-                    { q: "결벽증이 있는 청소 로봇의 이름은?", a: ["M-O", "B-L", "V-A", "C-P"], c: 0 },
-                    { q: "월-E 덕분에 만난 커플의 이름은?", a: ["존과 메리", "잭과 로즈", "톰과 제리", "아담과 이브"], c: 0 },
-                    { q: "월-E는 우주에서 무엇을 추진체로 썼나요?", a: ["엔진", "소화기", "선풍기", "압축 공기"], c: 1 },
-                    { q: "월-E는 에너지를 어디서 얻나요?", a: ["가솔린", "배터리", "태양광 패널", "원자력"], c: 2 },
-                    { q: "선장은 지구에 가면 아이들이 무엇을 잘하게 될 거라 했나요?", a: ["달리기", "농사(Farming)", "수영", "노래"], c: 1 },
-                    { q: "엔딩 크레딧 장면에서 선장은 무엇을 하나요?", a: ["잠자기", "사람들에게 농사 교육", "우주로 떠남", "월-E 수리"], c: 1 }
-                ]
-            },
-            en: {
-                status: "STATUS: STABLE",
-                error: "STATUS: LOCKDOWN (15s)",
-                lockdown: "SYSTEM LOCKDOWN",
-                reboot: "REBOOT SYSTEM",
-                finishTitle: "MISSION ACCOMPLISHED",
-                finishText: "Congratulations! You safely landed the Axiom on Earth. The future of humanity is now in your hands!",
-                hallLabel: "ENGLISH HALL OF FAME",
-                rankLabel: "ENGLISH",
-                questions: [
-                    { q: "Where did WALL-E work?", a: ["Mars", "The Moon", "Earth", "The Axiom"], c: 2 },
-                    { q: "WALL-E's only friend was a...", a: ["Dog", "Cockroach", "Mouse", "Cat"], c: 1 },
-                    { q: "Which company owned all enterprises at the beginning?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni"], c: 0 },
-                    { q: "What musical does WALL-E watch in the evening?", a: ["Sound of Music", "La La Land", "Hello, Dolly!", "Mamma Mia"], c: 2 },
-                    { q: "What did the rocket crash through when leaving Earth?", a: ["Clouds", "Satellite junk", "Asteroids", "Solar winds"], c: 1 },
-                    { q: "In the movie, what does 'BnL' stand for?", a: ["Build n Live", "Buy n Large", "Beyond n Limits", "Better n Larger"], c: 1 },
-                    { q: "What does he find inside an old refrigerator?", a: ["A small plant", "EVE's parts", "Gold coins", "Diamond"], c: 0 },
-                    { q: "What English word does WALL-E respond to?", a: ["Hello", "Directive", "Robot", "Name"], c: 1 },
-                    { q: "How did people speak to each other on the Axiom?", a: ["In person", "Via holograms", "Telepathy", "Letters"], c: 1 },
-                    { q: "What does EVE do when WALL-E offers the plant?", a: ["Eats it", "Scans it and shuts down", "Throws it away", "Dances"], c: 1 },
-                    { q: "Why did the autopilot try to destroy the plant?", a: ["Toxic", "Directive A113", "Hated plants", "Energy"], c: 1 },
-                    { q: "What is seen in the background of the captains' photos?", a: ["Earth", "Auto", "EVE models", "BnL logo"], c: 1 },
-                    { q: "According to the manual, a plant specimen means...", a: ["No oxygen", "Extinction", "Safe to return", "Robot era"], c: 2 },
-                    { q: "How did the Axiom get back to Earth?", a: ["Crashed", "Hyperjump", "Towed", "Manual"], c: 1 },
-                    { q: "What is the name of the cleaning robot?", a: ["M-O", "B-L", "V-A", "C-P"], c: 0 },
-                    { q: "What is the name of the couple who meet thanks to WALL-E?", a: ["John and Mary", "Jack and Rose", "Tom and Jerry", "Adam and Eve"], c: 0 },
-                    { q: "How does he propel himself in space?", a: ["Engine", "Fire extinguisher", "Fan", "Compressed air"], c: 1 },
-                    { q: "Where did WALL-E get his energy from?", a: ["Gasoline", "Battery", "Solar panels", "Nuclear"], c: 2 },
-                    { q: "Captain McCrae says children will be great at...", a: ["Running", "Farming", "Swimming", "Singing"], c: 1 },
-                    { q: "What is the Captain doing at the end of the movie?", a: ["Sleeping", "Teaching farming", "Leaving", "Repairing"], c: 1 }
-                ]
-            }
-        };
+        const appId = "1:115965203420:web:8ca714216c5872abe77519"; // 고유 앱 ID
 
         let currentStage = 0;
         let selectedLang = 'ko';
@@ -272,24 +99,42 @@
         let isLocked = false;
         let startTime = null;
 
-        // Anonymous Auth (Must be successful for Firestore)
-        async function initAuth() {
+        const questions = {
+            ko: [
+                { q: "월-E는 어디서 일하고 있었나요?", a: ["화성", "달", "지구", "액시엄 호"], c: 2 },
+                { q: "월-E에게는 유일한 친구가 있었습니다. 어떤 생물이었나요?", a: ["강아지", "바퀴벌레", "쥐", "고양이"], c: 1 },
+                { q: "상점, 은행, 철도를 소유한 거대 기업의 이름은?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni"], c: 0 },
+                { q: "월-E가 저녁에 집에서 즐겨 보는 뮤지컬 영화는?", a: ["사운드 오브 뮤직", "라라랜드", "헬로 돌리", "맘마미아"], c: 2 },
+                { q: "이브를 태운 로켓이 지구를 떠날 때 뚫고 지나간 것은?", a: ["구름", "인공위성 쓰레기", "소행성", "태양풍"], c: 1 }
+            ],
+            en: [
+                { q: "Where did WALL-E work?", a: ["Mars", "The Moon", "Earth", "The Axiom"], c: 2 },
+                { q: "WALL-E's only friend was a...", a: ["Dog", "Cockroach", "Mouse", "Cat"], c: 1 },
+                { q: "Which company owned all enterprises?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland", "Omni"], c: 0 },
+                { q: "What musical does WALL-E watch?", a: ["Sound of Music", "La La Land", "Hello, Dolly!", "Mamma Mia"], c: 2 },
+                { q: "What did the rocket crash through?", a: ["Clouds", "Satellite junk", "Asteroids", "Solar winds"], c: 1 }
+            ]
+        };
+
+        // Authentication FIRST (중요: 랭크 저장을 위해 필수)
+        async function startApp() {
             try {
                 await auth.signInAnonymously();
-                console.log("Logged in anonymously");
+                console.log("Authenticated");
             } catch (error) {
                 console.error("Auth error:", error);
+                document.getElementById('status-indicator').innerText = "SYSTEM: OFFLINE";
+                document.getElementById('status-indicator').classList.replace('text-green-400', 'text-red-500');
             }
         }
 
         function createStars() {
             const bg = document.getElementById('space-bg');
-            for (let i = 0; i < 150; i++) {
+            for (let i = 0; i < 100; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
                 const size = (Math.random() * 2 + 1) + 'px';
-                star.style.width = size;
-                star.style.height = size;
+                star.style.width = size; star.style.height = size;
                 star.style.top = Math.random() * 100 + '%';
                 star.style.left = Math.random() * 100 + '%';
                 star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
@@ -298,24 +143,13 @@
         }
 
         function checkNickname(lang) {
-            const input = document.getElementById('nickname-input');
-            nickname = input.value.trim();
-            if (nickname.length < 2) {
-                input.classList.add('border-red-500');
-                input.placeholder = "2글자 이상 입력하세요!";
-                return;
-            }
-            startGame(lang);
-        }
-
-        function startGame(lang) {
+            nickname = document.getElementById('nickname-input').value.trim();
+            if (nickname.length < 2) return;
             selectedLang = lang;
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('quiz-screen').classList.remove('hidden');
             document.getElementById('game-header').classList.remove('hidden');
             document.getElementById('display-nickname').innerText = nickname;
-            document.getElementById('lockdown-text').innerText = translations[lang].lockdown;
-            
             startTime = Date.now();
             timerInterval = setInterval(updateTimer, 1000);
             showQuestion();
@@ -323,154 +157,102 @@
 
         function updateTimer() {
             timerSeconds = Math.floor((Date.now() - startTime) / 1000);
-            const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
-            const secs = String(timerSeconds % 60).padStart(2, '0');
-            document.getElementById('display-timer').innerText = `${mins}:${secs}`;
+            const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+            const s = String(timerSeconds % 60).padStart(2, '0');
+            document.getElementById('display-timer').innerText = `${m}:${s}`;
         }
 
         function showQuestion() {
-            const langData = translations[selectedLang];
-            const q = langData.questions[currentStage];
-            
-            document.getElementById('level-indicator').innerText = `LEVEL: ${String(currentStage + 1).padStart(2, '0')}/20`;
-            document.getElementById('progress').style.width = `${((currentStage) / 20) * 100}%`;
+            const q = questions[selectedLang][currentStage];
             document.getElementById('question-text').innerText = q.q;
-            
             const container = document.getElementById('options-container');
             container.innerHTML = '';
-            
-            q.a.forEach((option, index) => {
+            q.a.forEach((opt, i) => {
                 const btn = document.createElement('button');
-                btn.className = 'option-btn w-full text-left p-4 rounded-xl bg-white/5 orbitron hover:bg-blue-600/30 transition-all text-white';
-                btn.innerHTML = `<span class="mr-4 text-blue-400">0${index + 1}</span> ${option}`;
-                btn.onclick = () => checkAnswer(index);
+                btn.className = 'option-btn w-full text-left p-4 rounded-xl bg-white/5 orbitron transition-all text-white';
+                btn.innerHTML = `<span class="mr-4 text-blue-400">0${i + 1}</span> ${opt}`;
+                btn.onclick = () => { if(!isLocked) (i === q.c) ? nextStage() : startPenalty(); };
                 container.appendChild(btn);
             });
         }
 
-        function checkAnswer(index) {
-            if (isLocked) return;
-            const langData = translations[selectedLang];
-            if (index === langData.questions[currentStage].c) {
-                currentStage++;
-                if (currentStage < langData.questions.length) {
-                    showQuestion();
-                } else {
-                    finishGame();
-                }
+        function nextStage() {
+            currentStage++;
+            if (currentStage < questions[selectedLang].length) {
+                showQuestion();
             } else {
-                startPenalty();
+                finishGame();
             }
         }
 
         function startPenalty() {
             isLocked = true;
-            const langData = translations[selectedLang];
             const overlay = document.getElementById('penalty-timer');
-            const countdownEl = document.getElementById('penalty-countdown');
-            const statusEl = document.getElementById('score-indicator');
-            
+            const countEl = document.getElementById('penalty-countdown');
             overlay.style.display = 'flex';
-            statusEl.innerText = langData.error;
-            statusEl.classList.remove('text-green-400');
-            statusEl.classList.add('text-red-500');
-            
             let count = 15;
-            countdownEl.innerText = count;
-            
-            const btns = document.querySelectorAll('.option-btn');
-            btns.forEach(b => b.disabled = true);
-
-            const pInterval = setInterval(() => {
+            countEl.innerText = count;
+            const itv = setInterval(() => {
                 count--;
-                countdownEl.innerText = count;
-                if (count <= 0) {
-                    clearInterval(pInterval);
-                    overlay.style.display = 'none';
-                    isLocked = false;
-                    statusEl.innerText = langData.status;
-                    statusEl.classList.remove('text-red-500');
-                    statusEl.classList.add('text-green-400');
-                    btns.forEach(b => b.disabled = false);
-                }
+                countEl.innerText = count;
+                if(count <= 0) { clearInterval(itv); overlay.style.display = 'none'; isLocked = false; }
             }, 1000);
         }
 
         async function finishGame() {
             clearInterval(timerInterval);
             document.getElementById('quiz-screen').classList.add('hidden');
-            document.getElementById('game-header').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
             
-            const langData = translations[selectedLang];
             const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
             const secs = String(timerSeconds % 60).padStart(2, '0');
             const timeStr = `${mins}:${secs}`;
-            
-            document.getElementById('result-title').innerText = langData.finishTitle;
-            document.getElementById('result-text').innerText = langData.finishText;
             document.getElementById('final-time').innerText = timeStr;
-            document.getElementById('reboot-btn').innerText = langData.reboot;
-            document.getElementById('hall-label').innerText = langData.hallLabel;
 
-            // Save Record
-            const colName = `ranking_${selectedLang}`;
-            try {
-                await db.collection(colName).add({
-                    nickname: nickname,
-                    time: timerSeconds,
-                    timeStr: timeStr,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-            } catch (e) {
-                console.error("Save failed:", e);
+            // [CRITICAL] 랭킹 저장 경로 수정 (가이드라인 준수)
+            // /artifacts/{appId}/public/data/ranking_{lang}
+            if (auth.currentUser) {
+                try {
+                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(`ranking_${selectedLang}`).add({
+                        name: nickname,
+                        score: timerSeconds,
+                        timeStr: timeStr,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    console.log("Score saved!");
+                } catch (e) {
+                    console.error("Save Error:", e);
+                }
             }
-            
-            loadRanking('final-rank-list', selectedLang);
+            loadRanking();
         }
 
-        async function loadRanking(containerId, lang) {
-            const list = document.getElementById(containerId);
-            list.innerHTML = `<p class="text-center py-4 orbitron opacity-50 text-xs">LOADING ${lang.toUpperCase()}...</p>`;
+        async function loadRanking() {
+            const list = document.getElementById('final-rank-list');
+            list.innerHTML = `<p class="text-center opacity-50 orbitron text-[10px]">SYNCING WITH SATELLITE...</p>`;
             
             try {
-                const snapshot = await db.collection(`ranking_${lang}`).get();
-                let entries = [];
-                snapshot.forEach(doc => entries.push(doc.data()));
+                // 단순 쿼리 후 메모리에서 정렬 (Rule 2 준수)
+                const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(`ranking_${selectedLang}`).get();
+                let data = [];
+                snapshot.forEach(doc => data.push(doc.data()));
                 
-                // Sort by fastest time
-                entries.sort((a, b) => a.time - b.time);
-                const top30 = entries.slice(0, 30);
-                
-                list.innerHTML = top30.map((entry, i) => `
-                    <div class="flex justify-between items-center p-3 border-b border-white/5 last:border-0">
-                        <div class="flex items-center gap-4">
-                            <span class="orbitron font-bold ${i < 3 ? 'text-yellow-400' : 'text-gray-500'}">#${i + 1}</span>
-                            <span class="font-medium text-white">${entry.nickname}</span>
-                        </div>
-                        <span class="orbitron text-sm text-blue-400">${entry.timeStr}</span>
+                data.sort((a, b) => a.score - b.score);
+                const top10 = data.slice(0, 10);
+
+                list.innerHTML = top10.map((r, i) => `
+                    <div class="flex justify-between items-center p-2 border-b border-white/5">
+                        <span class="orbitron text-xs ${i < 3 ? 'text-yellow-400' : 'text-gray-400'}">#0${i+1} ${r.name}</span>
+                        <span class="orbitron text-xs text-blue-400">${r.timeStr}</span>
                     </div>
-                `).join('') || `<p class="text-center py-4 text-xs opacity-30">NO DATA</p>`;
+                `).join('') || `<p class="text-center opacity-30 text-xs">NO DATA</p>`;
             } catch (e) {
-                list.innerHTML = `<p class="text-center text-red-400 text-xs">Error loading data.</p>`;
+                console.error("Load Error:", e);
+                list.innerHTML = `<p class="text-center text-red-500 text-[10px]">DATABASE ERROR</p>`;
             }
         }
 
-        function openLeaderboard(lang) {
-            const modal = document.getElementById('leaderboard-modal');
-            document.getElementById('rank-lang-label').innerText = translations[lang].rankLabel;
-            modal.classList.remove('hidden');
-            loadRanking('rank-list', lang);
-        }
-
-        function closeLeaderboard() {
-            document.getElementById('leaderboard-modal').classList.add('hidden');
-        }
-
-        window.onload = () => {
-            createStars();
-            initAuth();
-        };
+        window.onload = () => { createStars(); startApp(); };
     </script>
 </body>
 </html>
