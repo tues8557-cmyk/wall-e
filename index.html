@@ -101,15 +101,16 @@
     </div>
 
     <script>
-        // Firebase Config 및 AppID (환경 변수 사용)
+        // 하드코딩된 Secret 정보를 제거하고 전역 환경 변수를 사용하도록 수정
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ",
-            authDomain: "quizwall-e.firebaseapp.com",
-            projectId: "quizwall-e",
-            storageBucket: "quizwall-e.firebasestorage.app",
-            messagingSenderId: "115965203420",
-            appId: "1:115965203420:web:8ca714216c5872abe77519"
+            apiKey: "", // 보안을 위해 비워둡니다. 실제 키는 환경 변수에서 제공됩니다.
+            authDomain: "",
+            projectId: "",
+            storageBucket: "",
+            messagingSenderId: "",
+            appId: ""
         };
+        
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'walle-return-escape-v5';
 
         // Initialize Firebase
@@ -184,6 +185,7 @@
         // Firebase Auth Init (RULE 3)
         async function initAuth() {
             try {
+                // __initial_auth_token이 있으면 그것을 사용, 없으면 익명 로그인
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await auth.signInWithCustomToken(__initial_auth_token);
                 } else {
