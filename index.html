@@ -116,7 +116,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
-        const appId = "walle-earth-escape-v2";
+        const globalAppId = "walle-escape-final-v3";
 
         let currentStage = 0;
         let selectedLang = 'ko';
@@ -127,56 +127,56 @@
         let startTime = null;
 
         const questions = {
-            ko: [
-                { q: "월-E는 어디서 일하고 있었나요?", a: ["화성", "달", "지구", "액시엄 호"], c: 2 },
-                { q: "월-E의 유일한 친구였던 생물은?", a: ["강아지", "바퀴벌레", "쥐", "고양이"], c: 1 },
-                { q: "지구의 모든 것을 소유했던 거대 기업의 이름은?", a: ["BnL", "Cyberdyne", "Weyland", "Omni"], c: 0 },
-                { q: "월-E가 매일 보는 뮤지컬 영화 제목은?", a: ["라라랜드", "헬로 돌리", "맘마미아", "캣츠"], c: 1 },
-                { q: "로켓이 지구를 떠날 때 뚫고 지나간 것은?", a: ["인공위성 쓰레기", "구름", "소행성", "태양풍"], c: 0 },
-                { q: "월-E가 완충되었을 때 나는 소리는?", a: ["띵!", "딩!", "삐빅", "부웅"], c: 1 },
-                { q: "이브(EVE)의 원래 임무는 무엇이었나요?", a: ["청소", "식물 탐사", "인간 감시", "지도 제작"], c: 1 },
-                { q: "월-E가 이브에게 가장 먼저 보여준 보물은?", a: ["포크숟가락", "전구", "소화기", "식물"], c: 3 },
-                { q: "이브의 무기 명칭은?", a: ["레이저 캐논", "플라스마 암", "이온 블래스터", "포톤 건"], c: 1 },
-                { q: "이브가 식물을 발견했을 때 몸에 나타난 문양은?", a: ["번개", "식물 잎", "하트", "별"], c: 1 },
-                { q: "액시엄 호의 자동 조종 장치 이름은?", a: ["HAL", "오토(AUTO)", "자비스", "써니"], c: 1 },
-                { q: "액시엄 호의 선장이 키우던 동물은?", a: ["없음", "가상의 물고기", "로봇 개", "홀로그램 새"], c: 0 },
-                { q: "월-E가 우주에서 소화기를 사용한 이유는?", a: ["불을 끄기 위해", "추진력을 얻기 위해", "이브를 공격하려고", "청소하려고"], c: 1 },
-                { q: "액시엄 호에서 사람들을 돌보는 로봇들의 공통 명칭은?", a: ["GO-4", "M-O", "Type-S", "WALL-A"], c: 0 },
-                { q: "오염 물질을 극도로 싫어하는 청소 로봇의 이름은?", a: ["M-O", "D-X", "Clean-E", "Spot"], c: 0 },
-                { q: "BnL의 CEO 이름은 무엇이었나요?", a: ["포비", "쉘비 포스라이트", "머스크", "잡스"], c: 1 },
-                { q: "이브가 우주선에 타기 전 월-E에게 준 물건은?", a: ["라이터", "손", "반지", "없음"], c: 1 },
-                { q: "선장이 일어서서 걷기 시작할 때 배경음악은?", a: ["짜라투스트라는 이렇게 말했다", "운명", "백조의 호수", "스타워즈"], c: 0 },
-                { q: "영화 마지막에 사람들이 지구에 심은 것은?", a: ["옥수수", "식물(나무)", "꽃", "밀"], c: 1 },
-                { q: "월-E의 이름 약자는 무엇의 줄임말인가요?", a: ["Waste Allocation Load Lifter-Earth", "World Auto Load Life", "Water Air Land Life", "Waste All Light Life"], c: 0 }
-            ],
             en: [
                 { q: "Where did WALL-E work?", a: ["Mars", "The Moon", "Earth", "The Axiom"], c: 2 },
-                { q: "What was WALL-E's only friend?", a: ["Dog", "Cockroach", "Mouse", "Cat"], c: 1 },
-                { q: "What was the name of the mega-corporation?", a: ["BnL", "Cyberdyne", "Weyland", "Omni"], c: 0 },
-                { q: "What musical does WALL-E watch?", a: ["La La Land", "Hello, Dolly!", "Mamma Mia", "Cats"], c: 1 },
-                { q: "What did the rocket crash through?", a: ["Satellite junk", "Clouds", "Asteroids", "Solar winds"], c: 0 },
-                { q: "What sound does WALL-E make when charged?", a: ["Beep", "Ding!", "Vroom", "Ta-da"], c: 1 },
-                { q: "What was EVE's directive?", a: ["Cleaning", "Vegetation Evaluator", "Monitoring", "Mapping"], c: 1 },
-                { q: "What was the first treasure shown to EVE?", a: ["Spork", "Light bulb", "Fire extinguisher", "Plant"], c: 3 },
-                { q: "What is EVE's weapon called?", a: ["Laser Cannon", "Plasma Arm", "Ion Blaster", "Photon Gun"], c: 1 },
-                { q: "What symbol appeared on EVE with the plant?", a: ["Lightning", "Leaf", "Heart", "Star"], c: 1 },
-                { q: "What is the autopilot's name?", a: ["HAL", "AUTO", "Jarvis", "Sunny"], c: 1 },
-                { q: "What pet did the Captain have?", a: ["None", "Virtual Fish", "Robot Dog", "Hologram Bird"], c: 0 },
-                { q: "Why did WALL-E use a fire extinguisher in space?", a: ["To put out fire", "For propulsion", "To attack EVE", "To clean"], c: 1 },
-                { q: "Common name for service robots on Axiom?", a: ["GO-4", "M-O", "Type-S", "WALL-A"], c: 0 },
-                { q: "Name of the microbial cleaner robot?", a: ["M-O", "D-X", "Clean-E", "Spot"], c: 0 },
-                { q: "Who was the CEO of BnL?", a: ["Phoebe", "Shelby Forthright", "Musk", "Jobs"], c: 1 },
-                { q: "What did EVE give WALL-E before the ship?", a: ["Lighter", "Hand", "Ring", "Nothing"], c: 1 },
-                { q: "Music when the Captain starts walking?", a: ["Also Sprach Zarathustra", "Fate", "Swan Lake", "Star Wars"], c: 0 },
-                { q: "What did people plant at the end?", a: ["Corn", "Plant(Tree)", "Flower", "Wheat"], c: 1 },
-                { q: "What does WALL-E stand for?", a: ["Waste Allocation Load Lifter-Earth", "World Auto Load Life", "Water Air Land Life", "Waste All Light Life"], c: 0 }
+                { q: "WALL-E had a friend. What kind of creature was it?", a: ["Dog", "Cockroach", "Mouse", "Cat"], c: 1 },
+                { q: "Which company owned all of the commercial enterprises, including shops, banks, and space travel?", a: ["Buy n Large (BnL)", "Cyberdyne", "Weyland-Yutani", "Omni Consumer Products"], c: 0 },
+                { q: "At the end of the day, how does WALL-E amuse himself in the evening at his home?", a: ["Playing video games", "Watching 'Hello, Dolly!'", "Painting", "Reading books"], c: 1 },
+                { q: "When the rocket took EVE away, what did it have to crash through while leaving Earth?", a: ["A thick layer of clouds", "Satellite junk", "An asteroid belt", "A solar storm"], c: 1 },
+                { q: "In the movie, what does 'BnL' stand for?", a: ["Build n Learn", "Big n Large", "Buy n Large", "Better n Longer"], c: 2 },
+                { q: "What does he find when he pries the door off of what looks like an old refrigerator?", a: ["A light bulb", "A small plant", "A diamond ring", "A video tape"], c: 1 },
+                { q: "EVE tries to communicate using various languages. What English word does WALL-E respond to?", a: ["Hello", "WALL-E", "Directive", "EVE"], c: 3 },
+                { q: "How did people speak to each other on the Axiom?", a: ["Through face-to-face talk", "Using holographic screens", "Telepathy", "Sign language"], c: 1 },
+                { q: "What does she do when he offers her the plant?", a: ["She destroys it", "She gives it back", "She stores it inside her chest", "She scans it and ignores it"], c: 2 },
+                { q: "Why did the autopilot (AUTO) try to destroy the plant?", a: ["It was poisonous", "To prevent return to Earth", "It was a mistake", "It hated nature"], c: 1 },
+                { q: "What can be seen in the background of the pictures of all of the Axiom's captains?", a: ["The Earth", "The Autopilot (AUTO)", "A pet dog", "Stars"], c: 1 },
+                { q: "According to the manual, what does a 'confirmed specimen of photosynthesis' mean?", a: ["The mission is over", "The ship must return to Earth", "The plant is fake", "Life is impossible"], c: 1 },
+                { q: "In WALL-E, how did the Axiom get back to Earth?", a: ["By using hyperjump", "By manual steering", "By autopilot", "It didn't return"], c: 0 },
+                { q: "What’s the name of the cleaning robot who is obsessed with contaminants?", a: ["WALL-A", "GO-4", "M-O", "D-X"], c: 2 },
+                { q: "What is the name of the couple on the ship who meet thanks to WALL-E?", a: ["John and Mary", "Jack and Rose", "Adam and Eve", "Will and Sarah"], c: 0 },
+                { q: "How does WALL-E propel himself in space to fly with EVE?", a: ["Using a rocket engine", "Using a fire extinguisher", "Using solar panels", "Using a fan"], c: 1 },
+                { q: "Where did WALL-E get his energy from?", a: ["Batteries", "Nuclear power", "Solar energy", "Electricity from the ship"], c: 2 },
+                { q: "What does Captain McCrae tell the children they are going to be great at back on Earth?", a: ["Running", "Farming", "Programming", "Building"], c: 1 },
+                { q: "What do we see the Captain doing at the end of the movie?", a: ["Sleeping", "Teaching children to plant", "Driving a car", "Watching TV"], c: 1 }
+            ],
+            ko: [
+                { q: "월-E는 어디서 일하고 있었나요?", a: ["화성", "달", "지구", "액시엄 호"], c: 2 },
+                { q: "월-E의 친구는 어떤 생물이었나요?", a: ["강아지", "바퀴벌레", "쥐", "고양이"], c: 1 },
+                { q: "상점, 은행, 우주 여행사 등 모든 기업을 소유했던 회사는?", a: ["BnL (Buy n Large)", "사이버다인", "웨일랜드", "옴니"], c: 0 },
+                { q: "일과를 마친 후 월-E는 집에서 무엇을 보며 즐거워하나요?", a: ["비디오 게임", "뮤지컬 '헬로 돌리'", "그림 그리기", "독서"], c: 1 },
+                { q: "이브를 태운 로켓이 지구를 떠날 때 무엇을 뚫고 지나갔나요?", a: ["구름층", "인공위성 쓰레기", "소행성대", "태양풍"], c: 1 },
+                { q: "영화에서 'BnL'은 무엇의 약자인가요?", a: ["Build n Learn", "Big n Large", "Buy n Large", "Better n Longer"], c: 2 },
+                { q: "낡은 냉장고처럼 보이는 문의 걸쇠를 열었을 때 무엇을 발견했나요?", a: ["전구", "작은 식물", "다이아몬드 반지", "비디오 테이프"], c: 1 },
+                { q: "이브가 여러 언어로 말을 걸 때, 월-E가 반응한 영어 단어는?", a: ["Hello", "WALL-E", "Directive", "EVE"], c: 3 },
+                { q: "액시엄 호의 사람들은 서로 어떻게 대화했나요?", a: ["직접 대면 대화", "홀로그램 화면을 통해", "텔레파시", "수화"], c: 1 },
+                { q: "월-E가 식물을 주었을 때 이브는 어떻게 했나요?", a: ["파괴했다", "다시 돌려주었다", "몸속에 보관했다", "스캔만 하고 무시했다"], c: 2 },
+                { q: "자동 조종 장치(AUTO)가 식물을 파괴하려 한 이유는?", a: ["독성이 있어서", "지구 귀환을 막으려고", "단순한 실수", "자연을 싫어해서"], c: 1 },
+                { q: "액시엄 호의 역대 선장들 사진 배경에 공통적으로 보이는 것은?", a: ["지구", "자동 조종 로봇(AUTO)", "강아지", "별"], c: 1 },
+                { q: "매뉴얼에 따르면 '광합성 표본 확인'은 무엇을 의미하나요?", a: ["미션 종료", "지구로 즉시 귀환", "식물이 가짜임", "생존 불가능"], c: 1 },
+                { q: "액시엄 호는 어떻게 지구로 돌아왔나요?", a: ["하이퍼점프(초광속)", "수동 조종", "자동 조종", "돌아오지 못했다"], c: 0 },
+                { q: "오염 물질에 집착하는 청소 로봇의 이름은?", a: ["WALL-A", "GO-4", "M-O", "D-X"], c: 2 },
+                { q: "월-E 덕분에 액시엄 호에서 만나게 된 커플의 이름은?", a: ["존과 메리", "잭과 로즈", "아담과 이브", "윌과 사라"], c: 0 },
+                { q: "월-E가 우주에서 이브와 함께 날기 위해 추진력으로 사용한 것은?", a: ["로켓 엔진", "소화기", "태양광 패널", "선풍기"], c: 1 },
+                { q: "월-E는 에너지를 어디서 얻었나요?", a: ["배터리", "핵 에너지", "태양 에너지", "우주선 전원"], c: 2 },
+                { q: "선장은 아이들에게 지구에 돌아가면 무엇을 잘하게 될 거라고 했나요?", a: ["달리기", "농사(Farming)", "프로그래밍", "건축"], c: 1 },
+                { q: "영화 마지막에 선장은 무엇을 하고 있나요?", a: ["잠자기", "아이들에게 식물 심기 가르치기", "운전하기", "TV 시청"], c: 1 }
             ]
         };
 
         async function startApp() {
             try {
-                await auth.signInAnonymously();
-                console.log("Auth Success");
+                const cred = await auth.signInAnonymously();
+                console.log("Logged in as:", cred.user.uid);
             } catch (error) {
                 console.error("Auth error:", error);
                 document.getElementById('status-indicator').innerText = "SYSTEM: OFFLINE";
@@ -266,17 +266,17 @@
             const timeStr = `${mins}:${secs}`;
             document.getElementById('final-time').innerText = timeStr;
 
-            // 인증 재확인 및 저장
             const user = auth.currentUser;
             if (user) {
                 try {
-                    await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(`ranking_${selectedLang}`).add({
+                    // 가이드라인 경로: /artifacts/{appId}/public/data/{collectionName}
+                    await db.collection('artifacts').doc(globalAppId).collection('public').doc('data').collection(`ranking_${selectedLang}`).add({
                         name: nickname,
                         score: timerSeconds,
                         timeStr: timeStr,
                         timestamp: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                    console.log("Data saved successfully");
+                    console.log("Ranking saved successfully!");
                 } catch (e) {
                     console.error("Save Error:", e);
                 }
@@ -290,20 +290,23 @@
             list.innerHTML = `<p class="text-center opacity-50 orbitron text-[10px]">SYNCING WITH SATELLITE...</p>`;
             
             try {
-                const snapshot = await db.collection('artifacts').doc(appId).collection('public').doc('data').collection(`ranking_${lang}`).get();
+                const snapshot = await db.collection('artifacts').doc(globalAppId).collection('public').doc('data').collection(`ranking_${lang}`).get();
                 let data = [];
                 snapshot.forEach(doc => data.push(doc.data()));
+                
+                // Rule 2: Fetch all and sort in memory
                 data.sort((a, b) => a.score - b.score);
-                const top10 = data.slice(0, 15);
+                const topRank = data.slice(0, 15);
 
-                list.innerHTML = top10.map((r, i) => `
+                list.innerHTML = topRank.map((r, i) => `
                     <div class="flex justify-between items-center p-2 border-b border-white/5">
                         <span class="orbitron text-xs ${i < 3 ? 'text-yellow-400' : 'text-gray-400'}">#${String(i+1).padStart(2,'0')} ${r.name}</span>
                         <span class="orbitron text-xs text-blue-400">${r.timeStr}</span>
                     </div>
                 `).join('') || `<p class="text-center opacity-30 text-xs py-4">NO DATA</p>`;
             } catch (e) {
-                list.innerHTML = `<p class="text-center text-red-500 text-[10px] py-4">DATABASE ERROR</p>`;
+                console.error("Load Error:", e);
+                list.innerHTML = `<p class="text-center text-red-500 text-[10px] py-4">DATABASE OFFLINE</p>`;
             }
         }
 
