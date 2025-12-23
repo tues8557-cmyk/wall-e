@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>월-E: 지구 귀환 방탈출</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase App & Services (v11.6.1) -->
+    <!-- Firebase SDK (v11.6.1) -->
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
@@ -101,12 +101,21 @@
     </div>
 
     <script>
-        const firebaseConfig = JSON.parse('{"apiKey":"AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ","authDomain":"quizwall-e.firebaseapp.com","projectId":"quizwall-e","storageBucket":"quizwall-e.firebasestorage.app","messagingSenderId":"115965203420","appId":"1:115965203420:web:8ca714216c5872abe77519"}');
-        
+        // Firebase Config 및 AppID (환경 변수 사용)
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyA-Lz3KRZ6E61aZkgjuGiM0v5QYh9BGDwQ",
+            authDomain: "quizwall-e.firebaseapp.com",
+            projectId: "quizwall-e",
+            storageBucket: "quizwall-e.firebasestorage.app",
+            messagingSenderId: "115965203420",
+            appId: "1:115965203420:web:8ca714216c5872abe77519"
+        };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'walle-return-escape-v5';
+
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
-        const globalAppId = "walle-ranking-system-v5"; 
 
         const translations = {
             ko: {
@@ -170,12 +179,24 @@
         let timerInterval = null;
         let isLocked = false;
         let startTime = null;
+        let currentUser = null;
 
+        // Firebase Auth Init (RULE 3)
         async function initAuth() {
             try {
-                await auth.signInAnonymously();
-            } catch (e) { console.error("Auth Error:", e); }
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await auth.signInWithCustomToken(__initial_auth_token);
+                } else {
+                    await auth.signInAnonymously();
+                }
+            } catch (e) { 
+                console.error("Auth Error:", e); 
+            }
         }
+
+        auth.onAuthStateChanged((user) => {
+            currentUser = user;
+        });
 
         function createStars() {
             const bg = document.getElementById('space-bg');
@@ -211,7 +232,6 @@
             document.getElementById('display-timer').innerText = `${mins}:${secs}`;
         }
 
-        // 셔플 함수 (Fisher-Yates)
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -229,15 +249,12 @@
             const container = document.getElementById('options-container');
             container.innerHTML = '';
 
-            // 보기 리스트 복사 후 셔플
             const shuffledOptions = shuffleArray([...qData.a]);
 
             shuffledOptions.forEach((opt, idx) => {
                 const btn = document.createElement('button');
                 btn.className = 'option-btn w-full text-left p-4 rounded-xl bg-white/5 orbitron transition-all text-white';
                 btn.innerHTML = `<span class="mr-4 text-blue-400">0${idx + 1}</span> ${opt}`;
-                
-                // 클릭 이벤트: 텍스트 값을 비교하여 정답 체크
                 btn.onclick = () => { 
                     if(!isLocked) (opt === qData.c) ? nextStage() : startPenalty(); 
                 };
@@ -275,13 +292,16 @@
             const timeStr = `${mins}:${secs}`;
             document.getElementById('final-time').innerText = timeStr;
 
-            if (auth.currentUser) {
+            // Firestore Save (RULE 1 Path)
+            if (currentUser) {
                 try {
-                    await db.collection('artifacts').doc(globalAppId).collection('public').doc('data').collection(`rank_${selectedLang}`).add({
+                    const collectionPath = `artifacts/${appId}/public/data/rankings_${selectedLang}`;
+                    await db.collection(collectionPath).add({
                         nickname: nickname,
                         time: timerSeconds,
                         timeStr: timeStr,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        uid: currentUser.uid
                     });
                 } catch (e) { console.error("Save Error:", e); }
             }
@@ -291,12 +311,25 @@
         async function loadRanking(containerId, lang) {
             const list = document.getElementById(containerId);
             list.innerHTML = `<p class="text-center opacity-50 text-xs py-4">SYNCING DATA...</p>`;
+            
+            // Wait for Auth
+            if (!currentUser) {
+                setTimeout(() => loadRanking(containerId, lang), 500);
+                return;
+            }
+
             try {
-                const snapshot = await db.collection('artifacts').doc(globalAppId).collection('public').doc('data').collection(`rank_${lang}`).get();
+                // RULE 1 Path + RULE 2 Simple Query
+                const collectionPath = `artifacts/${appId}/public/data/rankings_${lang}`;
+                const snapshot = await db.collection(collectionPath).get();
+                
                 let data = [];
                 snapshot.forEach(doc => data.push(doc.data()));
+                
+                // RULE 2: Sort in Memory
                 data.sort((a, b) => a.time - b.time);
-                const top = data.slice(0, 20);
+                const top = data.slice(0, 10);
+                
                 list.innerHTML = top.map((r, i) => `
                     <div class="flex justify-between items-center p-2 border-b border-white/5">
                         <span class="orbitron text-xs ${i < 3 ? 'text-yellow-400' : 'text-gray-400'}">#${i+1} ${r.nickname}</span>
@@ -304,6 +337,7 @@
                     </div>
                 `).join('') || `<p class="text-center opacity-30 text-xs py-4">NO DATA</p>`;
             } catch (e) { 
+                console.error("Load Error:", e);
                 list.innerHTML = `<p class="text-center text-red-500 text-xs py-4">LOAD FAILED</p>`;
             }
         }
